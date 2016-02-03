@@ -101,7 +101,7 @@ boot(void)
 	kprintf("%s", harvard_copyright);
 	kprintf("\n");
 
-	kprintf("Put-your-group-name-here's system version %s (%s #%d)\n",
+	kprintf("Destructor's system version %s (%s #%d)\n",
 		GROUP_VERSION, buildconfig, buildversion);
 	kprintf("\n");
 
@@ -148,7 +148,7 @@ void
 shutdown(void)
 {
 
-	kprintf("Shutting down.\n");
+	kprintf("Astala Vista.\n");
 
 	vfs_clearbootfs();
 	vfs_clearcurdir();
