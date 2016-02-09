@@ -101,6 +101,7 @@ P(struct semaphore *sem)
 	/* Use the semaphore spinlock to protect the wchan as well. */
 	spinlock_acquire(&sem->sem_lock);
 	while (sem->sem_count == 0) {
+		
 		/*
 		 *
 		 * Note that we don't maintain strict FIFO ordering of

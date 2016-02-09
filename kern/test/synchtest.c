@@ -456,20 +456,21 @@ cvtest2(int nargs, char **args)
 	if (result) {
 		panic("cvtest2: thread_fork failed\n");
 	}
-
+	kprintf_n("cvtest2sem1...\n");
 	P(exitsem);
 	P(exitsem);
-
+	kprintf_n("cvtest2sem...\n");
 	sem_destroy(exitsem);
 	sem_destroy(gatesem);
 	exitsem = gatesem = NULL;
 	for (i=0; i<NCVS; i++) {
+		kprintf_n("cvtestfor1...\n");
 		lock_destroy(testlocks[i]);
+		kprintf_n("cvtestfor2...\n");
 		cv_destroy(testcvs[i]);
 		testlocks[i] = NULL;
 		testcvs[i] = NULL;
 	}
-
 	kprintf_n("cvtest2 done\n");
 	success(test_status, SECRET, "sy4");
 
