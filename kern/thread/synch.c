@@ -163,7 +163,7 @@ lock_create(const char *name)
 	}
 
 	spinlock_init(&lock->lk_lock);
-	lock->lk_flag = 1;
+	lock->lk_is_acquired = false;
 	lock->lk_holder=NULL;
 	return lock;
 }
@@ -193,7 +193,7 @@ lock_acquire(struct lock *lock)
 	if(lock->lk_holder==curthread){
 		panic("Deadlock");
 	}
-	while (lock->lk_flag == 0) {
+	while (lock->lk_is_acquired == true) {
 		/*
 		 *
 		 * Note that we don't maintain strict FIFO ordering of
@@ -208,9 +208,10 @@ lock_acquire(struct lock *lock)
 		 */
 		wchan_sleep(lock->lk_wchan, &lock->lk_lock);
 	}
-	KASSERT(lock->lk_flag == 1);
+
+	KASSERT(lock->lk_is_acquired == false);
 	
-	lock->lk_flag--;
+	lock->lk_is_acquired=true;
 	
 	lock->lk_holder=curthread;
 	spinlock_release(&lock->lk_lock);
@@ -221,9 +222,8 @@ lock_release(struct lock *lock)
 {
 	KASSERT(lock != NULL);
 	spinlock_acquire(&lock->lk_lock);
-	lock->lk_flag++;
+	lock->lk_is_acquired =false;
 	lock->lk_holder=NULL;
-	KASSERT(lock->lk_flag > 0);
 	wchan_wakeone(lock->lk_wchan, &lock->lk_lock);
 	spinlock_release(&lock->lk_lock);
 }
