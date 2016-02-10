@@ -190,9 +190,7 @@ lock_acquire(struct lock *lock)
 
 	/* Use the semaphore spinlock to protect the wchan as well. */
 	spinlock_acquire(&lock->lk_lock);
-	if(lock->lk_holder==curthread){
-		panic("Deadlock");
-	}
+	
 	while (lock->lk_is_acquired == true) {
 		/*
 		 *
@@ -221,6 +219,7 @@ void
 lock_release(struct lock *lock)
 {
 	KASSERT(lock != NULL);
+	KASSERT(lock_do_i_hold(lock));
 	spinlock_acquire(&lock->lk_lock);
 	lock->lk_is_acquired =false;
 	lock->lk_holder=NULL;
@@ -231,9 +230,9 @@ lock_release(struct lock *lock)
 bool
 lock_do_i_hold(struct lock *lock)
 { 	
-	if(lock->lk_holder==NULL){
-		return true;
-	}
+	// if(lock->lk_holder==NULL){
+	// 	return true;
+	// }
 	return lock->lk_holder==curthread;
 }
 
@@ -286,8 +285,8 @@ cv_wait(struct cv *cv, struct lock *lock)
 	KASSERT(cv != NULL);
 	KASSERT(lock != NULL);
 	KASSERT(lock_do_i_hold(lock));
-	lock_release(lock);
 	spinlock_acquire(&cv->cv_lock);
+	lock_release(lock);
 	wchan_sleep(cv->cv_wchan,&cv->cv_lock);
 	spinlock_release(&cv->cv_lock);
 	lock_acquire(lock);
@@ -300,6 +299,10 @@ cv_signal(struct cv *cv, struct lock *lock)
 	KASSERT(lock != NULL);
 	KASSERT(lock_do_i_hold(lock));
 	spinlock_acquire(&cv->cv_lock);
+	if(wchan_isempty(cv->cv_wchan,&cv->cv_lock)){
+		spinlock_release(&cv->cv_lock);	
+		return;
+	}
 	wchan_wakeone(cv->cv_wchan,&cv->cv_lock);
 	spinlock_release(&cv->cv_lock);
 }
@@ -311,6 +314,10 @@ cv_broadcast(struct cv *cv, struct lock *lock)
 	KASSERT(lock != NULL);
 	KASSERT(lock_do_i_hold(lock));
 	spinlock_acquire(&cv->cv_lock);
+	if(wchan_isempty(cv->cv_wchan,&cv->cv_lock)){
+		spinlock_release(&cv->cv_lock);	
+		return;
+	}
 	wchan_wakeall(cv->cv_wchan,&cv->cv_lock);
 	spinlock_release(&cv->cv_lock);
 }
