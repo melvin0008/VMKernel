@@ -156,7 +156,7 @@ matchmaker_end(uint32_t index) {
 	kprintf_n("%s ending\n", curthread->t_name);
 }
 
-#define NMATING 2
+#define NMATING 10
 
 int
 whalemating(int nargs, char **args) {
