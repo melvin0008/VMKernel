@@ -44,7 +44,83 @@
  * Called by the driver during initialization.
  */
 
+int male_count;
+int female_count;
+int matchmaker_count;
+int mating_count;
+
+struct lock *male_lock;
+struct lock *female_lock;
+struct lock *matchmaker_lock;
+struct lock *mating_lock;
+
+struct cv *male_cv;
+struct cv *female_cv;
+struct cv *matchmaker_cv;
+struct cv *mating_cv;
 void whalemating_init() {
+
+	/*
+	* Initialize all counts to zero
+	*/
+	male_count = female_count = matchmaker_count = 0;
+	mating_count = 1;
+	
+	/*
+	* Create locks for manipulating counts
+	*/
+	if (male_lock==NULL) {
+		male_lock = lock_create("male_lock");
+		if (male_lock == NULL) {
+			panic("male_lock: lock_create failed\n");
+		}
+	}
+	if (female_lock==NULL) {
+		female_lock = lock_create("female_lock");
+		if (female_lock == NULL) {
+			panic("female_lock: lock_create failed\n");
+		}
+	}
+	if (matchmaker_lock==NULL) {
+		matchmaker_lock = lock_create("matchmaker_lock");
+		if (matchmaker_lock == NULL) {
+			panic("matchmaker_lock: lock_create failed\n");
+		}
+	}
+	if (mating_lock==NULL) {
+		mating_lock = lock_create("mating_lock");
+		if (mating_lock == NULL) {
+			panic("mating_lock: lock_create failed\n");
+		}
+	}
+
+	/*
+	* Create conditinon variables till we find suitable other halves
+	*/
+	if (male_cv==NULL) {
+		male_cv = cv_create("male_cv");
+		if (male_cv == NULL) {
+			panic("male_cv: cv_create failed\n");
+		}
+	}
+	if (female_cv==NULL) {
+		female_cv = cv_create("female_cv");
+		if (female_cv == NULL) {
+			panic("female_cv: cv_create failed\n");
+		}
+	}
+	if (matchmaker_cv==NULL) {
+		matchmaker_cv = cv_create("matchmaker_cv");
+		if (matchmaker_cv == NULL) {
+			panic("matchmaker_cv: cv_create failed\n");
+		}
+	}
+	if (mating_cv==NULL) {
+		mating_cv = cv_create("mating_cv");
+		if (mating_cv == NULL) {
+			panic("mating_cv: cv_create failed\n");
+		}
+	}
 	return;
 }
 
@@ -54,6 +130,15 @@ void whalemating_init() {
 
 void
 whalemating_cleanup() {
+	// male_count = female_count = matchmaker_count = mating_count = NULL;
+	lock_destroy(male_lock);
+	lock_destroy(female_lock);
+	lock_destroy(matchmaker_lock);
+	lock_destroy(mating_lock);
+	cv_destroy(male_cv);
+	cv_destroy(female_cv);
+	cv_destroy(matchmaker_cv);
+	cv_destroy(mating_cv);
 	return;
 }
 
@@ -65,6 +150,33 @@ male(uint32_t index)
 	 * Implement this function by calling male_start and male_end when
 	 * appropriate.
 	 */
+	 // TODO Add kasserts
+
+	 kprintf_n(" Male %d enter \n", index);
+	 lock_acquire(male_lock);
+	 while(male_count > 0){
+	 	// Wait on the male channel
+	 	kprintf_n(" Male %d waiting on male channel \n", index);
+	 	cv_wait(male_cv, male_lock);
+	 }
+	 male_count++;
+	 lock_acquire(mating_lock);
+	 while (mating_count < 3){
+ 		// Wait on the mating channel
+ 		kprintf_n(" Male %d waiting on mating channel as mating count is %d \n", index, mating_count);
+ 		mating_count++;
+ 		cv_wait(mating_cv, mating_lock);
+	 }
+	// Broadcast and start mating
+	 male_start(index);
+ 	 cv_broadcast(mating_cv, mating_lock);
+	 lock_release(mating_lock);	
+	 male_count--;
+	 mating_count--;
+	 male_end(index);
+	 cv_signal(male_cv,male_lock);
+	 lock_release(male_lock);
+	  
 	return;
 }
 
@@ -76,6 +188,31 @@ female(uint32_t index)
 	 * Implement this function by calling female_start and female_end when
 	 * appropriate.
 	 */
+	kprintf_n(" Female %d enter \n", index);	 
+	 lock_acquire(female_lock);
+	 while(female_count > 0){
+	 	// Wait on the female channel
+		kprintf_n(" Female %d waiting on male channel \n", index);
+	 	cv_wait(female_cv, female_lock);
+	 }
+	 female_count++;
+	 lock_acquire(mating_lock);
+	 while (mating_count < 3){
+ 		// Wait on the mating channel
+		kprintf_n(" Female %d waiting on mating channel as mating count is %d \n", index, mating_count);
+ 		mating_count++;
+ 		cv_wait(mating_cv, mating_lock);
+	 }
+	// Broadcast and start mating
+	 female_start(index);
+ 	 cv_broadcast(mating_cv, mating_lock);
+	 lock_release(mating_lock);	
+
+	 female_count--;
+	 mating_count--;
+	 female_end(index);
+	 cv_signal(male_cv,female_lock);
+	 lock_release(female_lock);
 	return;
 }
 
@@ -87,5 +224,30 @@ matchmaker(uint32_t index)
 	 * Implement this function by calling matchmaker_start and matchmaker_end
 	 * when appropriate.
 	 */
+	kprintf_n(" Maker %d enter \n", index);
+	 lock_acquire(matchmaker_lock);
+	 while(female_count > 0){
+	 	// Wait on the matchmaker channel
+ 		kprintf_n(" Maker %d waiting on Maker channel \n", index);
+	 	cv_wait(matchmaker_cv, matchmaker_lock);
+	 }
+	 matchmaker_count++;
+	 lock_acquire(mating_lock);
+	 while (mating_count < 3){
+ 		// Wait on the mating channel	
+		kprintf_n(" Maker %d waiting on mating channel as mating count is %d \n", index, mating_count);
+ 		mating_count++;
+ 		cv_wait(mating_cv, mating_lock);
+	 }
+	// Broadcast and start mating
+	 matchmaker_start(index);
+ 	 cv_broadcast(mating_cv, mating_lock);
+	 lock_release(mating_lock);	
+
+	 matchmaker_count--;
+	 mating_count--;
+	 matchmaker_end(index);
+	 cv_signal(matchmaker_cv, matchmaker_lock);
+	 lock_release(matchmaker_lock);
 	return;
 }
