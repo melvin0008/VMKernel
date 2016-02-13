@@ -158,9 +158,8 @@ male(uint32_t index)
 	 * appropriate.
 	 */
 	 // TODO Add kasserts
-
-	 kprintf_n(" Male %d enter \n", index);
 	 lock_acquire(male_lock);
+	 kprintf_n(" Male %d enter, male_count is %d \n", index,male_count);
 	 while(male_count > 0){
 	 	// Wait on the male channel
 	 	kprintf_n(" Male %d waiting on male channel \n", index);
@@ -170,9 +169,11 @@ male(uint32_t index)
 	 lock_acquire(mating_lock);
 	 if (mating_count < 3){
  		// Wait on the mating channel
- 		kprintf_n(" Male %d waiting on mating channel as mating count is %d \n", index, mating_count);
+ 		kprintf_n(" Male %d waiting on mating channel as mating count is %d and male_count is %d \n", index, mating_count,male_count);
  		mating_count++;
+ 		lock_release(male_lock);
  		cv_wait(mating_cv, mating_lock);
+ 		lock_acquire(male_lock);
  		mating_count--;
 	 }
 	// Broadcast and start mating
@@ -201,8 +202,8 @@ female(uint32_t index)
 	 * Implement this function by calling female_start and female_end when
 	 * appropriate.
 	 */
-	kprintf_n(" Female %d enter \n", index);	 
 	 lock_acquire(female_lock);
+	 kprintf_n(" Female %d enter, female_count is %d \n", index,female_count);
 	 while(female_count > 0){
 	 	// Wait on the female channel
 		kprintf_n(" Female %d waiting on female channel \n", index);
@@ -212,9 +213,11 @@ female(uint32_t index)
 	 lock_acquire(mating_lock);
 	 if (mating_count < 3){
  		// Wait on the mating channel
-		kprintf_n(" Female %d waiting on mating channel as mating count is %d \n", index, mating_count);
+		kprintf_n(" Female %d waiting on mating channel as mating count is %d and female_count is %d \n", index, mating_count,female_count);
  		mating_count++;
+ 		lock_release(female_lock);
  		cv_wait(mating_cv, mating_lock);
+ 		lock_acquire(female_lock);
  		mating_count--;
 	 }
 	// Broadcast and start mating
@@ -239,20 +242,23 @@ matchmaker(uint32_t index)
 	 * Implement this function by calling matchmaker_start and matchmaker_end
 	 * when appropriate.
 	 */
-	kprintf_n(" Maker %d enter \n", index);
 	 lock_acquire(matchmaker_lock);
+	kprintf_n(" Maker %d enter and maker count is %d \n", index,matchmaker_count);
+	 
 	 while(matchmaker_count > 0){
 	 	// Wait on the matchmaker channel
- 		kprintf_n(" Maker %d waiting on Maker channel \n", index);
+ 		kprintf_n(" Maker %d waiting on Maker channel as maker count is %d \n", index,matchmaker_count);
 	 	cv_wait(matchmaker_cv, matchmaker_lock);
 	 }
 	 matchmaker_count++;
 	 lock_acquire(mating_lock);
 	 if (mating_count < 3){
  		// Wait on the mating channel	
-		kprintf_n(" Maker %d waiting on mating channel as mating count is %d \n", index, mating_count);
+		kprintf_n(" Maker %d waiting on mating channel as mating count is %d and maker count is %d \n", index, mating_count,matchmaker_count);
  		mating_count++;
+ 		lock_release(matchmaker_lock);
  		cv_wait(mating_cv, mating_lock);
+ 		lock_acquire(matchmaker_lock);
  		mating_count--;
 	 }
 	// Broadcast and start mating

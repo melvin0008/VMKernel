@@ -290,10 +290,12 @@ whalemating(int nargs, char **args) {
 			whale_threads[index] = NULL;
 			switch (i) {
 				case 0:
+					kprintf_n("male  %d thread create\n",index);
 					snprintf(name, sizeof(name), "Male Whale Thread %d", index);
 					err = thread_fork(name, NULL, male_wrapper, NULL, index);
 					break;
 				case 1:
+					kprintf_n("female %d thread create\n",index);
 					snprintf(name, sizeof(name), "Female Whale Thread %d", index);
 					err = thread_fork(name, NULL, female_wrapper, NULL, index);
 					break;
@@ -303,14 +305,15 @@ whalemating(int nargs, char **args) {
 				panic("whalemating: thread_fork failed: (%s)\n", strerror(err));
 			}
 		}
+		kprintf_n("test0");
 	}
-	
+	kprintf_n("test1");
 	/* Wait for males and females to start. */
 	for (i = 0; i < NMATING * 2; i++) {
 		kprintf_t(".");
 		P(startsem);
 	}
-
+	kprintf_n("test2");
 	/* Make sure nothing is happening... */
 	loop_status = SUCCESS;
 	for (i = 0; i < CHECK_TIMES && loop_status == SUCCESS; i++) {
@@ -332,6 +335,7 @@ whalemating(int nargs, char **args) {
 		kprintf_t(".");
 		int index = (2 * NMATING) + j;
 		whale_threads[index] = NULL;
+		kprintf_n("matchmaker %d thread create\n",index);
 		snprintf(name, sizeof(name), "Matchmaker Whale Thread %d", index);
 		err = thread_fork(name, NULL, matchmaker_wrapper, NULL, index);
 		if (err) {
