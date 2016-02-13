@@ -67,6 +67,7 @@ check_thread(volatile void* threads[], uint32_t index) {
  * Driver code for the whalemating problem.
  */
 
+
 #define NMATING 3
 #define MALE 0
 #define FEMALE 1
