@@ -114,6 +114,7 @@ P(struct semaphore *sem)
 		 * Exercise: how would you implement strict FIFO
 		 * ordering?
 		 */
+		 
 		wchan_sleep(sem->sem_wchan, &sem->sem_lock);
 	}
 	KASSERT(sem->sem_count > 0);
