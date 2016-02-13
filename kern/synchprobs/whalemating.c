@@ -176,7 +176,7 @@ male(uint32_t index)
  		mating_count--;
 	 }
 	// Broadcast and start mating
-	 // kprintf_n(" Mating started by male %d as mating count is %d \n", index, mating_count);
+	 kprintf_n(" Mating started by male %d as mating count is %d \n", index, mating_count);
 
 
 	 // spinlock_acquire(&mating);
@@ -205,7 +205,7 @@ female(uint32_t index)
 	 lock_acquire(female_lock);
 	 while(female_count > 0){
 	 	// Wait on the female channel
-		kprintf_n(" Female %d waiting on male channel \n", index);
+		kprintf_n(" Female %d waiting on female channel \n", index);
 	 	cv_wait(female_cv, female_lock);
 	 }
 	 female_count++;
@@ -218,7 +218,7 @@ female(uint32_t index)
  		mating_count--;
 	 }
 	// Broadcast and start mating
-	 // kprintf_n(" Mating started by female %d as mating count is %d \n", index, mating_count);
+	 kprintf_n(" Mating started by female %d as mating count is %d \n", index, mating_count);
 	 // spinlock_acquire(&mating);
 	 female_start(index);
  	 cv_broadcast(mating_cv, mating_lock);
@@ -256,7 +256,7 @@ matchmaker(uint32_t index)
  		mating_count--;
 	 }
 	// Broadcast and start mating
-	 // kprintf_n(" Mating started by matchmaker %d as mating count is %d \n", index, mating_count);
+	 kprintf_n(" Mating started by matchmaker %d as mating count is %d \n", index, mating_count);
 	 // spinlock_acquire(&mating);
 	 matchmaker_start(index);
  	 cv_broadcast(mating_cv, mating_lock);
