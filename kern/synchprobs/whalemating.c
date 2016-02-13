@@ -178,6 +178,7 @@ male(uint32_t index)
 	// Broadcast and start mating
 	 // kprintf_n(" Mating started by male %d as mating count is %d \n", index, mating_count);
 
+
 	 // spinlock_acquire(&mating);
  	 cv_broadcast(mating_cv, mating_lock);
 	 male_start(index);
@@ -185,7 +186,7 @@ male(uint32_t index)
 	 lock_release(mating_lock);	
 	 male_end(index);
 	 // spinlock_release(&mating);
-	 
+
 	 cv_signal(male_cv,male_lock);
 	 lock_release(male_lock);
 	  
