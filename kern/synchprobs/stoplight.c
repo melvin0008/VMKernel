@@ -69,9 +69,9 @@
 #include <test.h>
 #include <synch.h>
 
-enum Quadrant{
+typedef enum Quad{
 	ZERO,ONE,TWO,THREE
-}
+}Quadrant;
 
 struct lock *lock_zero;
 struct lock *lock_one;
@@ -136,22 +136,31 @@ turnright(uint32_t direction, uint32_t index)
 {
 	(void)direction;
 	(void)index;
-	switch(direction){
+	Quadrant _direction = direction;
+	switch(_direction){
 
-		case Quadrant.ZERO:
+		case ZERO:
 							lock_acquire(lock_zero);
+							inQuadrant(ZERO,index);
+							leaveIntersection(index);
 							lock_release(lock_zero);	
 							break;
-		case Quadrant.ONE:
+		case ONE:
 							lock_acquire(lock_one);
+							inQuadrant(ONE,index);
+							leaveIntersection(index);
 							lock_release(lock_one);	
 							break;
-		case Quadrant.TWO:
+		case TWO:
 							lock_acquire(lock_two);
+							inQuadrant(TWO,index);
+							leaveIntersection(index);
 							lock_release(lock_two);	
 							break;
-		case Quadrant.THREE:
+		case THREE:
 							lock_acquire(lock_three);
+							inQuadrant(THREE,index);
+							leaveIntersection(index);
 							lock_release(lock_three);	
 							break;
 	}
@@ -166,21 +175,22 @@ gostraight(uint32_t direction, uint32_t index)
 	/*
 	 * Implement this function.
 	 */
-	 switch(direction){
+	 Quadrant _direction = direction;
+	 switch(_direction){
 
-		case Quadrant.ZERO:
+		case ZERO:
 							lock_acquire(lock_zero);
 							lock_release(lock_zero);	
 							break;
-		case Quadrant.ONE:
+		case ONE:
 							lock_acquire(lock_one);
 							lock_release(lock_one);	
 							break;
-		case Quadrant.TWO:
+		case TWO:
 							lock_acquire(lock_two);
 							lock_release(lock_two);	
 							break;
-		case Quadrant.THREE:
+		case THREE:
 							lock_acquire(lock_three);
 							lock_release(lock_three);	
 							break;
@@ -195,24 +205,37 @@ turnleft(uint32_t direction, uint32_t index)
 	/*
 	 * Implement this function.
 	 */
-	switch(direction){
+	 Quadrant _direction = direction;
+		switch(_direction){
 
-		case Quadrant.ZERO:
+		case ZERO:
 							lock_acquire(lock_zero);
 							lock_release(lock_zero);	
 							break;
-		case Quadrant.ONE:
+		case ONE:
 							lock_acquire(lock_one);
 							lock_release(lock_one);	
 							break;
-		case Quadrant.TWO:
+		case TWO:
 							lock_acquire(lock_two);
 							lock_release(lock_two);	
 							break;
-		case Quadrant.THREE:
+		case THREE:
 							lock_acquire(lock_three);
 							lock_release(lock_three);	
 							break;
 	}
 	return;
 }
+
+
+// int get_next_for_straight(curr_quadrant){
+	
+// 	return -1;	
+// };
+
+// int get_next_for_left(curr_quadrant){
+// 	return -1;	
+// };
+
+
