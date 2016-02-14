@@ -120,6 +120,14 @@ stoplight_init() {
  */
 
 void stoplight_cleanup() {
+	lock_destroy(lock_zero);
+	lock_destroy(lock_one);
+	lock_destroy(lock_two);
+	lock_destroy(lock_three);
+	lock_zero = NULL;
+	lock_one = NULL;
+	lock_two = NULL;
+	lock_three = NULL;
 	return;
 }
 
