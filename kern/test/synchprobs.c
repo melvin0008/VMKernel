@@ -68,7 +68,7 @@ check_thread(volatile void* threads[], uint32_t index) {
  */
 
 
-#define NMATING 3
+#define NMATING 10
 #define MALE 0
 #define FEMALE 1
 #define MATCHMAKER 2
@@ -290,12 +290,10 @@ whalemating(int nargs, char **args) {
 			whale_threads[index] = NULL;
 			switch (i) {
 				case 0:
-					kprintf_n("male  %d thread create\n",index);
 					snprintf(name, sizeof(name), "Male Whale Thread %d", index);
 					err = thread_fork(name, NULL, male_wrapper, NULL, index);
 					break;
 				case 1:
-					kprintf_n("female %d thread create\n",index);
 					snprintf(name, sizeof(name), "Female Whale Thread %d", index);
 					err = thread_fork(name, NULL, female_wrapper, NULL, index);
 					break;
@@ -334,7 +332,6 @@ whalemating(int nargs, char **args) {
 		kprintf_t(".");
 		int index = (2 * NMATING) + j;
 		whale_threads[index] = NULL;
-		kprintf_n("matchmaker %d thread create\n",index);
 		snprintf(name, sizeof(name), "Matchmaker Whale Thread %d", index);
 		err = thread_fork(name, NULL, matchmaker_wrapper, NULL, index);
 		if (err) {
