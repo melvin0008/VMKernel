@@ -69,6 +69,15 @@
 #include <test.h>
 #include <synch.h>
 
+enum Quadrant{
+	ZERO,ONE,TWO,THREE
+}
+
+struct lock *lock_zero;
+struct lock *lock_one;
+struct lock *lock_two;
+struct lock *lock_three;
+
 /*
  * Called by the driver during initialization.
  */
@@ -76,7 +85,34 @@
 
 void
 stoplight_init() {
-		
+	/*
+	* Create locks for intersection
+	*/
+	if (lock_zero==NULL) {
+		lock_zero = lock_create("lock_zero");
+		if (lock_zero == NULL) {
+			panic("lock_zero: lock_create failed\n");
+		}
+	}
+	if (lock_one==NULL) {
+		lock_one = lock_create("lock_one");
+		if (lock_one == NULL) {
+			panic("lock_one: lock_create failed\n");
+		}
+	}
+	if (lock_two==NULL) {
+		lock_two = lock_create("lock_two");
+		if (lock_two == NULL) {
+			panic("lock_two: lock_create failed\n");
+		}
+	}
+	if (lock_three==NULL) {
+		lock_three = lock_create("lock_three");
+		if (lock_three == NULL) {
+			panic("lock_three: lock_create failed\n");
+		}
+	}
+	return;
 }
 
 /*
