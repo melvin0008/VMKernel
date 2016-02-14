@@ -73,9 +73,10 @@
  * Called by the driver during initialization.
  */
 
+
 void
 stoplight_init() {
-	return;
+		
 }
 
 /*
@@ -91,9 +92,26 @@ turnright(uint32_t direction, uint32_t index)
 {
 	(void)direction;
 	(void)index;
-	/*
-	 * Implement this function.
-	 */
+	switch(direction){
+
+	case Quadrant.ZERO:
+						lock_acquire(lock_zero);
+						lock_release(lock_zero);	
+						break;
+	case Quadrant.ONE:
+						lock_acquire(lock_one);
+						lock_release(lock_one);	
+						break;
+	case Quadrant.TWO:
+						lock_acquire(lock_two);
+						lock_release(lock_two);	
+						break;
+	case Quadrant.THREE:
+						lock_acquire(lock_three);
+						lock_release(lock_three);	
+						break;
+	}
+	
 	return;
 }
 void
@@ -104,6 +122,25 @@ gostraight(uint32_t direction, uint32_t index)
 	/*
 	 * Implement this function.
 	 */
+	 switch(direction){
+
+	case Quadrant.ZERO:
+						lock_acquire(lock_zero);
+						lock_release(lock_zero);	
+						break;
+	case Quadrant.ONE:
+						lock_acquire(lock_one);
+						lock_release(lock_one);	
+						break;
+	case Quadrant.TWO:
+						lock_acquire(lock_two);
+						lock_release(lock_two);	
+						break;
+	case Quadrant.THREE:
+						lock_acquire(lock_three);
+						lock_release(lock_three);	
+						break;
+	}
 	return;
 }
 void
@@ -114,5 +151,24 @@ turnleft(uint32_t direction, uint32_t index)
 	/*
 	 * Implement this function.
 	 */
+	switch(direction){
+
+	case Quadrant.ZERO:
+						lock_acquire(lock_zero);
+						lock_release(lock_zero);	
+						break;
+	case Quadrant.ONE:
+						lock_acquire(lock_one);
+						lock_release(lock_one);	
+						break;
+	case Quadrant.TWO:
+						lock_acquire(lock_two);
+						lock_release(lock_two);	
+						break;
+	case Quadrant.THREE:
+						lock_acquire(lock_three);
+						lock_release(lock_three);	
+						break;
+	}
 	return;
 }
