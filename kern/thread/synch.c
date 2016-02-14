@@ -181,6 +181,7 @@ lock_destroy(struct lock *lock)
 
 	kfree(lock->lk_name);
 	kfree(lock);
+	lock=NULL;
 }
 
 void
@@ -278,6 +279,7 @@ cv_destroy(struct cv *cv)
 	wchan_destroy(cv->cv_wchan);
 	kfree(cv->cv_name);
 	kfree(cv);
+	cv=NULL;
 }
 
 void

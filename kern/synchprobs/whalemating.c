@@ -133,14 +133,21 @@ void whalemating_init() {
 void
 whalemating_cleanup() {
 	lock_destroy(male_lock);
-	lock_destroy(female_lock);
-	lock_destroy(matchmaker_lock);
-	lock_destroy(mating_lock);
 	cv_destroy(male_cv);
+	lock_destroy(female_lock);
 	cv_destroy(female_cv);
+	lock_destroy(matchmaker_lock);
 	cv_destroy(matchmaker_cv);
+	lock_destroy(mating_lock);
 	cv_destroy(mating_cv);
-	// TODO free memeory here
+	male_lock=NULL;
+	male_cv=NULL;
+	female_lock=NULL;
+	female_cv=NULL;
+	matchmaker_lock=NULL;
+	matchmaker_cv=NULL;
+	mating_lock=NULL;
+	mating_cv=NULL;
 	male_count = female_count = matchmaker_count = 0;
 	mating_count = 1;
 	return;
