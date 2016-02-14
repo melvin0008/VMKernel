@@ -79,11 +79,19 @@ struct lock *lock_two;
 struct lock *lock_three;
 struct lock *lock_turning;
 
+void
+_turnRightHelper(struct lock *, Quadrant, uint32_t);
+
+void
+_goStraightHelper(struct lock *, struct lock *, Quadrant,Quadrant, uint32_t);
+
+void 
+_turnleftHelper(struct lock *,struct lock *,struct lock *,Quadrant ,Quadrant ,Quadrant, uint32_t);
+
 /*
  * Called by the driver during initialization.
  */
 
-void turnleftHelper(struct lock *first_lock,struct lock *second_lock,struct lock *third_lock,Quadrant q1,Quadrant q2,Quadrant q3 , uint32_t index);
 void
 stoplight_init() {
 	/*
@@ -141,105 +149,33 @@ void stoplight_cleanup() {
 }
 
 void
-turnright(uint32_t direction, uint32_t index)
-{
-	(void)direction;
-	(void)index;
-	Quadrant _direction = direction;
+_turnRightHelper(struct lock *first_lock, Quadrant q1, uint32_t index){
 	lock_acquire(lock_turning);
-	switch(_direction){
-
-		case ZERO:
-			lock_acquire(lock_zero);
-			inQuadrant(ZERO,index);
-			lock_release(lock_turning);
-			leaveIntersection(index);
-			lock_release(lock_zero);	
-			break;
-		case ONE:
-			lock_acquire(lock_one);
-			inQuadrant(ONE,index);
-			lock_release(lock_turning);
-			leaveIntersection(index);
-			lock_release(lock_one);	
-			break;
-		case TWO:
-			lock_acquire(lock_two);
-			inQuadrant(TWO,index);
-			lock_release(lock_turning);
-			leaveIntersection(index);
-			lock_release(lock_two);	
-			break;
-		case THREE:
-			lock_acquire(lock_three);
-			inQuadrant(THREE,index);
-			lock_release(lock_turning);
-			leaveIntersection(index);
-			lock_release(lock_three);	
-			break;
-	}
-	// lock_release(lock_turning);
+	lock_acquire(first_lock);
+	inQuadrant(q1,index);
+	lock_release(lock_turning);
+	leaveIntersection(index);
+	lock_release(first_lock);
 	return;
 }
-void
-gostraight(uint32_t direction, uint32_t index)
-{
-	(void)direction;
-	(void)index;
-	/*
-	 * Implement this function.
-	 */
-	 Quadrant _direction = direction;
-	 lock_acquire(lock_turning);
-	 switch(_direction){
 
-		case ZERO:
-			lock_acquire(lock_zero);
-			inQuadrant(ZERO,index);
-			lock_acquire(lock_three);
-			inQuadrant(THREE,index);
-			lock_release(lock_zero);
-			lock_release(lock_turning);
-			leaveIntersection(index);
-			lock_release(lock_three);
-			break;
-		case ONE:
-			lock_acquire(lock_one);
-			inQuadrant(ONE,index);
-			lock_acquire(lock_zero);
-			inQuadrant(ZERO,index);
-			lock_release(lock_one);
-			lock_release(lock_turning);
-			leaveIntersection(index);
-			lock_release(lock_zero);	
-			break;
-		case TWO:
-			lock_acquire(lock_two);
-			inQuadrant(TWO,index);
-			lock_acquire(lock_one);
-			inQuadrant(ONE,index);
-			lock_release(lock_two);
-			lock_release(lock_turning);	
-			leaveIntersection(index);
-			lock_release(lock_one);	
-			break;
-		case THREE:
-			lock_acquire(lock_three);
-			inQuadrant(THREE,index);	
-			lock_acquire(lock_two);
-			inQuadrant(TWO,index);	
-			lock_release(lock_three);
-			lock_release(lock_turning);
-			leaveIntersection(index);	
-			lock_release(lock_two);
-			break;
-	}
-	// lock_release(lock_turning);
-	return;
+
+void
+_goStraightHelper(struct lock *first_lock, struct lock *second_lock, Quadrant q1,Quadrant q2, uint32_t index){
+	 lock_acquire(lock_turning);
+	 lock_acquire(first_lock);
+	 inQuadrant(q1,index);
+	 lock_acquire(second_lock);
+	 inQuadrant(q2,index);
+	 lock_release(first_lock);
+	 lock_release(lock_turning);	
+	 leaveIntersection(index);
+	 lock_release(second_lock);
+	 return;
 }
 
 void 
-turnleftHelper(struct lock *first_lock,struct lock *second_lock,struct lock *third_lock,Quadrant q1,Quadrant q2,Quadrant q3 , uint32_t index){
+_turnleftHelper(struct lock *first_lock,struct lock *second_lock,struct lock *third_lock,Quadrant q1,Quadrant q2,Quadrant q3 , uint32_t index){
 	lock_acquire(lock_turning);
 	lock_acquire(first_lock);
 	inQuadrant(q1,index);
@@ -252,7 +188,61 @@ turnleftHelper(struct lock *first_lock,struct lock *second_lock,struct lock *thi
 	lock_release(lock_turning);
 	leaveIntersection(index);
 	lock_release(third_lock);
+	return;
 }
+
+void
+turnright(uint32_t direction, uint32_t index)
+{
+	(void)direction;
+	(void)index;
+	Quadrant _direction = direction;
+	switch(_direction){
+
+		case ZERO:
+			_turnRightHelper(lock_zero,ZERO,index);	
+			break;
+		case ONE:
+			_turnRightHelper(lock_one,ONE,index);	
+			break;
+		case TWO:
+			_turnRightHelper(lock_two,TWO,index);	
+			break;
+		case THREE:
+			_turnRightHelper(lock_three,THREE,index);	
+			break;
+	}
+	return;
+}
+
+void
+gostraight(uint32_t direction, uint32_t index)
+{
+	(void)direction;
+	(void)index;
+	/*
+	 * Implement this function.
+	 */
+	 Quadrant _direction = direction;
+	 switch(_direction){
+
+		case ZERO:
+			_goStraightHelper(lock_zero,lock_three,ZERO,THREE,index);
+			break;
+		case ONE:
+			_goStraightHelper(lock_one,lock_zero,ONE,ZERO,index);
+			break;
+		case TWO:
+			_goStraightHelper(lock_two,lock_one,TWO,ONE,index);
+			break;
+		case THREE:
+			_goStraightHelper(lock_three,lock_two,THREE,TWO,index);
+			break;
+	}
+	return;
+}
+
+
 void
 turnleft(uint32_t direction, uint32_t index)
 {
@@ -262,21 +252,20 @@ turnleft(uint32_t direction, uint32_t index)
 	 * Implement this function.
 	 */
 
-	 Quadrant _direction = direction;
-	
+	Quadrant _direction = direction;
 	switch(_direction){
 
 		case ZERO:
-			turnleftHelper(lock_zero,lock_three,lock_two,ZERO,THREE,TWO,index);
+			_turnleftHelper(lock_zero,lock_three,lock_two,ZERO,THREE,TWO,index);
 			break;
 		case ONE:
-			turnleftHelper(lock_one,lock_zero,lock_three,ONE,ZERO,THREE,index);
+			_turnleftHelper(lock_one,lock_zero,lock_three,ONE,ZERO,THREE,index);
 			break;
 		case TWO:
-			turnleftHelper(lock_two,lock_one,lock_zero,TWO,ONE,ZERO,index);
+			_turnleftHelper(lock_two,lock_one,lock_zero,TWO,ONE,ZERO,index);
 			break;
 		case THREE:
-			turnleftHelper(lock_three,lock_two,lock_one,THREE,TWO,ONE,index);
+			_turnleftHelper(lock_three,lock_two,lock_one,THREE,TWO,ONE,index);
 			break;
 	}
 	return;
