@@ -305,15 +305,14 @@ whalemating(int nargs, char **args) {
 				panic("whalemating: thread_fork failed: (%s)\n", strerror(err));
 			}
 		}
-		kprintf_n("test0");
+
 	}
-	kprintf_n("test1");
 	/* Wait for males and females to start. */
 	for (i = 0; i < NMATING * 2; i++) {
 		kprintf_t(".");
 		P(startsem);
 	}
-	kprintf_n("test2");
+	
 	/* Make sure nothing is happening... */
 	loop_status = SUCCESS;
 	for (i = 0; i < CHECK_TIMES && loop_status == SUCCESS; i++) {

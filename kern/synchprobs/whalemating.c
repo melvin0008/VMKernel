@@ -158,6 +158,7 @@ male(uint32_t index)
 	 * appropriate.
 	 */
 	 // TODO Add kasserts
+	 male_start(index);
 	 lock_acquire(male_lock);
 	 kprintf_n(" Male %d enter, male_count is %d \n", index,male_count);
 	 while(male_count > 0){
@@ -202,6 +203,7 @@ female(uint32_t index)
 	 * Implement this function by calling female_start and female_end when
 	 * appropriate.
 	 */
+	 female_start(index);
 	 lock_acquire(female_lock);
 	 kprintf_n(" Female %d enter, female_count is %d \n", index,female_count);
 	 while(female_count > 0){
