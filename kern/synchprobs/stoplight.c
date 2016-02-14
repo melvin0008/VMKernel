@@ -251,71 +251,61 @@ turnleft(uint32_t direction, uint32_t index)
 	switch(_direction){
 
 		case ZERO:
-				lock_acquire(lock_zero);
-				inQuadrant(ZERO,index);
-				lock_acquire(lock_three);
-				inQuadrant(THREE,index);
-				lock_release(lock_zero);
-				lock_acquire(lock_two);
-				inQuadrant(TWO,index);
-				lock_release(lock_three);
-				lock_release(lock_turning);
-				leaveIntersection(index);
-				lock_release(lock_two);
-				break;
+			lock_acquire(lock_zero);
+			inQuadrant(ZERO,index);
+			lock_acquire(lock_three);
+			inQuadrant(THREE,index);
+			lock_release(lock_zero);
+			lock_acquire(lock_two);
+			inQuadrant(TWO,index);
+			lock_release(lock_three);
+			lock_release(lock_turning);
+			leaveIntersection(index);
+			lock_release(lock_two);
+			break;
 		case ONE:
-				lock_acquire(lock_one);
-				inQuadrant(ONE,index);
-				lock_acquire(lock_zero);
-				inQuadrant(ZERO,index);
-				lock_release(lock_one);
-				lock_acquire(lock_three);
-				inQuadrant(THREE,index);
-				lock_release(lock_zero);
-				lock_release(lock_turning);
-				leaveIntersection(index);	
-				lock_release(lock_three);
-				break;
+			lock_acquire(lock_one);
+			inQuadrant(ONE,index);
+			lock_acquire(lock_zero);
+			inQuadrant(ZERO,index);
+			lock_release(lock_one);
+			lock_acquire(lock_three);
+			inQuadrant(THREE,index);
+			lock_release(lock_zero);
+			lock_release(lock_turning);
+			leaveIntersection(index);	
+			lock_release(lock_three);
+			break;
 		case TWO:
 							
-				lock_acquire(lock_two);
-				inQuadrant(TWO,index);
-				lock_acquire(lock_one);
-				inQuadrant(ONE,index);
-				lock_release(lock_one);
-				lock_acquire(lock_zero);
-				inQuadrant(ZERO,index);
-				lock_release(lock_two);
-				lock_release(lock_turning);
-				leaveIntersection(index);	
-				lock_release(lock_zero);
-				break;
+			lock_acquire(lock_two);
+			inQuadrant(TWO,index);
+			lock_acquire(lock_one);
+			inQuadrant(ONE,index);
+			lock_release(lock_one);
+			lock_acquire(lock_zero);
+			inQuadrant(ZERO,index);
+			lock_release(lock_two);
+			lock_release(lock_turning);
+			leaveIntersection(index);	
+			lock_release(lock_zero);
+			break;
 		case THREE:
 							
-				lock_acquire(lock_three);
-				inQuadrant(THREE,index);
-				lock_acquire(lock_two);
-				inQuadrant(TWO,index);
-				lock_release(lock_three);
-				lock_acquire(lock_one);
-				inQuadrant(ONE,index);
-				lock_release(lock_two);
-				lock_release(lock_turning);
-				leaveIntersection(index);
-				lock_release(lock_one);	
-				break;
+			lock_acquire(lock_three);
+			inQuadrant(THREE,index);
+			lock_acquire(lock_two);
+			inQuadrant(TWO,index);
+			lock_release(lock_three);
+			lock_acquire(lock_one);
+			inQuadrant(ONE,index);
+			lock_release(lock_two);
+			lock_release(lock_turning);
+			leaveIntersection(index);
+			lock_release(lock_one);	
+			break;
 	}
 	return;
 }
-
-
-// int get_next_for_straight(curr_quadrant){
-	
-// 	return -1;	
-// };
-
-// int get_next_for_left(curr_quadrant){
-// 	return -1;	
-// };
 
 
