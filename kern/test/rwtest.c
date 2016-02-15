@@ -16,31 +16,68 @@
 #include <kern/secret.h>
 #include <spinlock.h>
 
-static struct lock *testlock = NULL;
+static uint32_t startcount;
+static struct cv *startcv;
+static struct lock *start_count_lock;
+static struct rwlock *testlock = NULL;
+static struct semaphore *donesem;
+static bool test_status = FAIL;
+
+
 
 static
 void 
-reader_thread(void *junk, unsigned long num){
-    (void) junk;
-    (void) num;
+reader_thread(unsigned long num){
     rwlock_acquire_read(testlock);
-    kprintf_n("Reader will read : %l",num);
+    kprintf_n("Reader %lu is reading\n",num);
     random_yielder(4);
-    kprintf_n("Reader is done  :%l",num);
+    kprintf_n("Reader %lu is done reading\n",num);
     rwlock_release_read(testlock);
     V(donesem);
 }
 
 static
 void 
-writer_thread(void *junk, unsigned long num){
-    (void) junk;
-    (void) num;
-    rwlock_acquire_write(testlock);
-    kprintf_n("Writer is writing  :%l",num);
+reader_thread_wrapper(void *junk, unsigned long num){
+    (void)junk;   
     random_yielder(4);
-    kprintf_n("Write is done  :%l",num);
+    lock_acquire(start_count_lock);
+    startcount--;
+    if (startcount == 0) {
+        cv_broadcast(startcv, start_count_lock);
+    } else {
+        cv_wait(startcv, start_count_lock);
+    }
+    lock_release(start_count_lock);
+    reader_thread(num);
+    V(donesem);
+}
+
+static
+void 
+writer_thread(unsigned long num){
+    rwlock_acquire_write(testlock);
+    kprintf_n("Writer %lu is writing\n",num);
+    random_yielder(4);
+    kprintf_n("Write %lu is done\n",num);
     rwlock_release_write(testlock);
+    V(donesem);
+}
+
+static
+void 
+writer_thread_wrapper(void *junk, unsigned long num){
+    (void)junk;
+    random_yielder(4);
+    lock_acquire(start_count_lock);
+    startcount--;
+    if (startcount == 0) {
+        cv_broadcast(startcv, start_count_lock);
+    } else {
+        cv_wait(startcv, start_count_lock);
+    }
+    lock_release(start_count_lock);
+    writer_thread(num);
     V(donesem);
 }
 
@@ -50,7 +87,9 @@ int rwtest(int nargs, char **args) {
 
     int i, result;
     char name[32];
-    kprintf_n("Starting lt1...\n");
+    kprintf_n("Starting rwt1...\n");
+    start_count_lock = lock_create("start_count_lock");
+    startcv = cv_create("startcv");
     for (i=0; i<CREATELOOPS; i++) {
         kprintf_t(".");
         testlock = rwlock_create("testlock");
@@ -66,18 +105,17 @@ int rwtest(int nargs, char **args) {
             sem_destroy(donesem);
         }
     }
-    spinlock_init(&status_lock);
-    test_status = SUCCESS;
-
+    // spinlock_init(&status_lock);
+    startcount = NTHREADS;
     for (i=0; i<NTHREADS; i++) {
         kprintf_t(".");
         snprintf(name, sizeof(name), "reader- %d", i);
-        result = thread_fork(name, NULL, reader_thread, NULL, i);
+        result = thread_fork(name, NULL, reader_thread_wrapper, NULL, i);
         if (result) {
             panic("rw: thread_fork failed: %s\n", strerror(result));
         }
         snprintf(name, sizeof(name), "writer- %d", i);
-        result = thread_fork("synchtest", NULL, writer_thread, NULL, i);
+        result = thread_fork("synchtest", NULL, writer_thread_wrapper, NULL, i);
         if (result) {
             panic("rw: thread_fork failed: %s\n", strerror(result));
         }
@@ -92,6 +130,8 @@ int rwtest(int nargs, char **args) {
     testlock = NULL;
     donesem = NULL;
 
+    // TODO Write a test to check concurrent writes
+    test_status = SUCCESS;
     kprintf_t("\n");
 	success(test_status, SECRET, "rwt1");
 	return 0;

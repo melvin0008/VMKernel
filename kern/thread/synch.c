@@ -324,3 +324,85 @@ cv_broadcast(struct cv *cv, struct lock *lock)
 	wchan_wakeall(cv->cv_wchan,&cv->cv_lock);
 	spinlock_release(&cv->cv_lock);
 }
+////////////////////////////////////////////////////////////
+//
+// RW locks
+
+struct rwlock *
+rwlock_create(const char *name)
+{
+	// Implement create here
+	(void)name;
+	struct rwlock *rw_lock;
+	rw_lock = kmalloc(sizeof(*rw_lock));
+	if (rw_lock == NULL) {
+		return NULL;
+	}
+
+	rw_lock->rwlock_name = kstrdup(name);
+	if (rw_lock->rwlock_name == NULL) {
+		kfree(rw_lock);
+		return NULL;
+	}
+
+	rw_lock->lock = lock_create(kstrdup(name));
+	if (rw_lock->lock == NULL) {
+		kfree(rw_lock);
+		return NULL;
+	}
+
+	rw_lock->semaphore = sem_create(kstrdup(name),MAX_READERS);
+	if (rw_lock->semaphore == NULL) {
+		kfree(rw_lock);
+		return NULL;
+	}
+	return rw_lock;
+}
+
+void
+rwlock_destroy(struct rwlock *rw_lock)
+{
+	KASSERT(rw_lock != NULL);
+	lock_destroy(rw_lock->lock);
+	sem_destroy(rw_lock->semaphore);
+	kfree(rw_lock->rwlock_name);
+	kfree(rw_lock);
+	rw_lock=NULL;
+}
+
+void rwlock_acquire_read(struct rwlock *rw_lock)
+{
+	KASSERT(rw_lock != NULL);
+	lock_acquire(rw_lock->lock);
+	P(rw_lock->semaphore);
+	lock_release(rw_lock->lock);
+	return;
+};
+void rwlock_release_read(struct rwlock *rw_lock)
+{
+	KASSERT(rw_lock != NULL);
+	V(rw_lock->semaphore);
+	return;
+};
+void rwlock_acquire_write(struct rwlock *rw_lock)
+{
+	KASSERT(rw_lock != NULL);
+	int i;
+	lock_acquire(rw_lock->lock);
+	for (i = 0; i < MAX_READERS; ++i)
+	{
+		P(rw_lock->semaphore);
+	}
+	lock_release(rw_lock->lock);
+	return;
+};
+void rwlock_release_write(struct rwlock *rw_lock)
+{
+	KASSERT(rw_lock != NULL);
+	int i;
+	for (i = 0; i < MAX_READERS; ++i)
+	{
+		V(rw_lock->semaphore);
+	}
+	return;
+};
