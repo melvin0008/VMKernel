@@ -18,6 +18,7 @@
 
 static struct lock *testlock = NULL;
 
+static
 void 
 reader_thread(void *junk, unsigned long num){
     (void) junk;
@@ -30,6 +31,7 @@ reader_thread(void *junk, unsigned long num){
     V(donesem);
 }
 
+static
 void 
 writer_thread(void *junk, unsigned long num){
     (void) junk;
@@ -40,6 +42,7 @@ writer_thread(void *junk, unsigned long num){
     kprintf_n("Write is done  :%l",num);
     rwlock_release_write(testlock);
     V(donesem);
+}
 
 int rwtest(int nargs, char **args) {
 	(void)nargs;
