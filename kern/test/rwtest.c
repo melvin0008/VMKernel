@@ -3,8 +3,8 @@
  * testing. Please consider this before changing anything in this file.
  */
 
-#define CREATELOOPS     8
-#define NTHREADS      32
+#define CREATELOOPS 8
+#define NTHREADS 32
 
 
 #include <types.h>
@@ -16,22 +16,35 @@
 #include <kern/secret.h>
 #include <spinlock.h>
 
+static struct lock *testlock = NULL;
+
 void 
 rwlocktestthread1(void *junk, unsigned long num){
-
+    (void) junk;
+    (void) num;
+    rwlock_acquire_read(testlock);
+    kprintf_n("Reader will read : %l",num);
+    random_yielder(4);
+    kprintf_n("Reader is done  :%l",num);
+    rwlock_release_read(testlock);
+    V(donesem);
 }
 
 void 
 rwlocktestthread2(void *junk, unsigned long num){
-    
+    (void) junk;
+    (void) num;
+    rwlock_acquire_write(testlock);
+    kprintf_n("Writer is writing  :%l",num);
+    random_yielder(4);
+    kprintf_n("Write is done  :%l",num);
+    rwlock_release_write(testlock);
+    V(donesem);
 }
 
 int rwtest(int nargs, char **args) {
 	(void)nargs;
 	(void)args;
-
-    (void)nargs;
-    (void)args;
 
     int i, result;
 
@@ -65,7 +78,7 @@ int rwtest(int nargs, char **args) {
             panic("lt1: thread_fork failed: %s\n", strerror(result));
         }
     }
-    for (i=0; i<NTHREADS; i++) {
+    for (i=0; i<NTHREADS*2; i++) {
         kprintf_t(".");
         P(donesem);
     }
