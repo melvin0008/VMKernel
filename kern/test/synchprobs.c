@@ -82,7 +82,6 @@ static volatile int matchmaker_start_count;
 static volatile int matchmaker_end_count;
 static volatile int match_count;
 
-static volatile int match_status[3 * NMATING];
 static volatile void* whale_threads[3 * NMATING];
 static volatile int whale_roles[3 * NMATING];
 static struct semaphore *matcher_sem;
@@ -118,11 +117,11 @@ male_start(uint32_t index) {
 	check_thread(whale_threads, index);
 	check_role(index, MALE);
 	male_start_count++;
+	kprintf_n("%s starting\n", curthread->t_name);
+	kprintf_t(".");
 	lock_release(testlock);
 	random_yielder(PROBLEMS_MAX_YIELDER);
 	random_spinner(PROBLEMS_MAX_SPINNER);
-	kprintf_n("%s starting\n", curthread->t_name);
-	kprintf_t(".");
 	V(startsem);
 }
 void
@@ -132,11 +131,11 @@ male_end(uint32_t index) {
 	check_thread(whale_threads, index);
 	check_role(index, MALE);
 	male_end_count++;
+	kprintf_n("%s ending\n", curthread->t_name);
+	kprintf_t(".");
 	lock_release(testlock);
 	random_yielder(PROBLEMS_MAX_YIELDER);
 	random_spinner(PROBLEMS_MAX_SPINNER);
-	kprintf_n("%s ending\n", curthread->t_name);
-	kprintf_t(".");
 	V(endsem);
 }
 
@@ -161,11 +160,11 @@ female_start(uint32_t index) {
 	check_thread(whale_threads, index);
 	check_role(index, FEMALE);
 	female_start_count++;
+	kprintf_n("%s starting\n", curthread->t_name);
+	kprintf_t(".");
 	lock_release(testlock);
 	random_yielder(PROBLEMS_MAX_YIELDER);
 	random_spinner(PROBLEMS_MAX_SPINNER);
-	kprintf_n("%s starting\n", curthread->t_name);
-	kprintf_t(".");
 	V(startsem);
 }
 void
@@ -175,11 +174,11 @@ female_end(uint32_t index) {
 	check_thread(whale_threads, index);
 	check_role(index, FEMALE);
 	female_end_count++;
+	kprintf_n("%s ending\n", curthread->t_name);
+	kprintf_t(".");
 	lock_release(testlock);
 	random_yielder(PROBLEMS_MAX_YIELDER);
 	random_spinner(PROBLEMS_MAX_SPINNER);
-	kprintf_n("%s ending\n", curthread->t_name);
-	kprintf_t(".");
 	V(endsem);
 }
 
@@ -205,11 +204,11 @@ matchmaker_start(uint32_t index) {
 	check_thread(whale_threads, index);
 	check_role(index, MATCHMAKER);
 	matchmaker_start_count++;
+	kprintf_n("%s starting\n", curthread->t_name);
+	kprintf_t(".");
 	lock_release(testlock);
 	random_yielder(PROBLEMS_MAX_YIELDER);
 	random_spinner(PROBLEMS_MAX_SPINNER);
-	kprintf_n("%s starting\n", curthread->t_name);
-	kprintf_t(".");
 	V(startsem);
 }
 void
@@ -219,18 +218,13 @@ matchmaker_end(uint32_t index) {
 	check_thread(whale_threads, index);
 	check_role(index, MATCHMAKER);
 
-	int i = match_count * 3;
-	match_status[i] = male_start_count - male_end_count;
-	match_status[i+1] = female_start_count - female_end_count;
-	match_status[i+2] = matchmaker_start_count - matchmaker_end_count;
-
 	match_count++;
 	matchmaker_end_count++;
+	kprintf_n("%s ending\n", curthread->t_name);
+	kprintf_t(".");
 	lock_release(testlock);
 	random_yielder(PROBLEMS_MAX_YIELDER);
 	random_spinner(PROBLEMS_MAX_SPINNER);
-	kprintf_n("%s ending\n", curthread->t_name);
-	kprintf_t(".");
 	V(endsem);
 }
 
@@ -240,7 +234,6 @@ void
 check_zero(int count) {
 	failif((count != 0), "failed: not all threads completed");
 }
-
 
 int
 whalemating(int nargs, char **args) {
@@ -259,7 +252,10 @@ whalemating(int nargs, char **args) {
 	matchmaker_start_count = 0;
 	matchmaker_end_count = 0;
 	match_count = 0;
-	
+
+	kprintf_n("Starting sp1...\n");
+	kprintf_n("If this tests hangs, your solution is incorrect.\n");
+
 	testlock = lock_create("testlock");
 	if (testlock == NULL) {
 		panic("sp1: lock_create failed\n");
@@ -305,6 +301,7 @@ whalemating(int nargs, char **args) {
 		}
 
 	}
+
 	/* Wait for males and females to start. */
 	for (i = 0; i < NMATING * 2; i++) {
 		kprintf_t(".");
@@ -389,25 +386,6 @@ whalemating(int nargs, char **args) {
 	}
 
 	whalemating_cleanup();
-
-	check_zero(male_start_count - NMATING);
-	check_zero(female_start_count - NMATING);
-	check_zero(matchmaker_start_count - NMATING);
-	check_zero(male_start_count - male_end_count);
-	check_zero(female_start_count - female_end_count);
-	check_zero(matchmaker_start_count - matchmaker_end_count);
-
-	if (match_count == NMATING) {
-		for (i = 0; i < NMATING; i++) {
-			kprintf_t(".");
-			j = i * 3;
-			int male = match_status[j];
-			int female = match_status[j + 1];
-			failif((male == 0 || female == 0), "failed: not all males were matched");
-		}
-	} else {
-		failif(true, "failed: not all males were matched");
-	}
 
 done:
 	for (i = 0; i < total_count; i++) {
@@ -621,6 +599,9 @@ int stoplight(int nargs, char **args) {
 
 	max_car_count = 0;
 	all_quadrant = 0;
+
+	kprintf_n("Starting sp2...\n");
+	kprintf_n("If this tests hangs, your solution is incorrect.\n");
 
 	for (i = 0; i < NUM_QUADRANTS; i++) {
 		quadrant_array[i] = 0;
