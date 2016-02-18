@@ -229,11 +229,11 @@ matchmaker_end(uint32_t index) {
 }
 
 
-static
-void
-check_zero(int count) {
-	failif((count != 0), "failed: not all threads completed");
-}
+// static
+// void
+// check_zero(int count) {
+// 	failif((count != 0), "failed: not all threads completed");
+// }
 
 int
 whalemating(int nargs, char **args) {
