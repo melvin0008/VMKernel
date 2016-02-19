@@ -7,5 +7,6 @@
 build
 /userland/testbin/randcall/calls.c
 /root/
+.root
 *.swo
 *.swp
