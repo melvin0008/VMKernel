@@ -327,12 +327,12 @@ cv_broadcast(struct cv *cv, struct lock *lock)
 ////////////////////////////////////////////////////////////
 //
 // RW locks
+// Referred:- http://jhshi.me/2013/04/05/os161-synchronization-primitives-rwlock/
 
 struct rwlock *
 rwlock_create(const char *name)
 {
-	// Implement create here
-	(void)name;
+	
 	struct rwlock *rw_lock;
 	rw_lock = kmalloc(sizeof(*rw_lock));
 	if (rw_lock == NULL) {
@@ -363,6 +363,7 @@ void
 rwlock_destroy(struct rwlock *rw_lock)
 {
 	KASSERT(rw_lock != NULL);
+	// Destroy structure components
 	lock_destroy(rw_lock->lock);
 	sem_destroy(rw_lock->semaphore);
 	kfree(rw_lock->rwlock_name);
@@ -370,6 +371,7 @@ rwlock_destroy(struct rwlock *rw_lock)
 	rw_lock=NULL;
 }
 
+// Acquires a read lock
 void rwlock_acquire_read(struct rwlock *rw_lock)
 {
 	KASSERT(rw_lock != NULL);
@@ -378,17 +380,20 @@ void rwlock_acquire_read(struct rwlock *rw_lock)
 	lock_release(rw_lock->lock);
 	return;
 };
+// Releases a read lock
 void rwlock_release_read(struct rwlock *rw_lock)
 {
 	KASSERT(rw_lock != NULL);
 	V(rw_lock->semaphore);
 	return;
 };
+// Acquires a write lock
 void rwlock_acquire_write(struct rwlock *rw_lock)
 {
 	KASSERT(rw_lock != NULL);
 	int i;
 	lock_acquire(rw_lock->lock);
+	// Call P (exhaust) for all the resources for exclusive access
 	for (i = 0; i < MAX_READERS; ++i)
 	{
 		P(rw_lock->semaphore);
@@ -396,6 +401,7 @@ void rwlock_acquire_write(struct rwlock *rw_lock)
 	lock_release(rw_lock->lock);
 	return;
 };
+// Releases a write lock
 void rwlock_release_write(struct rwlock *rw_lock)
 {
 	KASSERT(rw_lock != NULL);

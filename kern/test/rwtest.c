@@ -140,9 +140,7 @@ int rwtest(int nargs, char **args) {
     kprintf_t("\n");
 	success(test_status, SECRET, "rwt1");
 	return 0;
-<<<<<<< HEAD
-}
-=======
+
 }
 
 int rwtest2(int nargs, char **args) {
@@ -184,4 +182,3 @@ int rwtest5(int nargs, char **args) {
 
 	return 0;
 }
->>>>>>> 63e9257b9391c8c3f335399300e1b9dac581a53d
