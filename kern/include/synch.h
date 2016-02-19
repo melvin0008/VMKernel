@@ -36,7 +36,7 @@
 
 
 #include <spinlock.h>
-#define MAX_READERS 10
+#define MAX_READERS 48
 
 /*
  * Dijkstra-style semaphore.

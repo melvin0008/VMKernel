@@ -143,12 +143,53 @@ int rwtest(int nargs, char **args) {
 
 int rwtest2(int nargs, char **args) {
 	(void)nargs;
-	(void)args;
+    (void)args;
 
-	kprintf_n("rwt2 unimplemented\n");
-	success(FAIL, SECRET, "rwt2");
+    int i, result;
+    char name[32];
+    kprintf_n("Starting rwt2...\n");
+    start_count_lock = lock_create("start_count_lock");
+    startcv = cv_create("startcv");
+    for (i=0; i<CREATELOOPS; i++) {
+        kprintf_t(".");
+        testlock = rwlock_create("testlock");
+        if (testlock == NULL) {
+            panic("lt1: lock_create failed\n");
+        }
+        donesem = sem_create("donesem", 0);
+        if (donesem == NULL) {
+            panic("lt1: sem_create failed\n");
+        }
+        if (i != CREATELOOPS - 1) {
+            rwlock_destroy(testlock);
+            sem_destroy(donesem);
+        }
+    }
+    // spinlock_init(&status_lock);
+    startcount = NTHREADS;
+    for (i=0; i<NTHREADS; i++) {
+        kprintf_t(".");
+        snprintf(name, sizeof(name), "reader- %d", i);
+        result = thread_fork(name, NULL, reader_thread_wrapper, NULL, i);
+        if (result) {
+            panic("rw: thread_fork failed: %s\n", strerror(result));
+        }
+        
+    }
+    for (i=0; i<NTHREADS; i++) {
+        kprintf_t(".");
+        P(donesem);
+    }
 
-	return 0;
+    rwlock_destroy(testlock);
+    sem_destroy(donesem);
+    testlock = NULL;
+    donesem = NULL;
+
+    test_status = SUCCESS;
+    kprintf_t("\n");
+    success(test_status, SECRET, "rwt2");
+    return 0;
 }
 
 int rwtest3(int nargs, char **args) {
