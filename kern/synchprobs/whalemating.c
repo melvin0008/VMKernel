@@ -162,9 +162,9 @@ male(uint32_t index)
 	 * appropriate.
 	 */
 	 // TODO Add kasserts
+	 male_start(index);
 	 lock_acquire(male_lock);
 	 // kprintf_n(" Male %d enter, male_count is %d \n", index,male_count);
-	 male_start(index);
 	 while(male_count > 0){
 	 	// Wait on the male channel
 	 	// kprintf_n(" Male %d waiting on male channel \n", index);
@@ -187,10 +187,9 @@ male(uint32_t index)
 	 male_count--;
 	 
 	 lock_release(mating_lock);	
-	 male_end(index);
 	 cv_signal(male_cv,male_lock);
 	 lock_release(male_lock);
-	  
+	 male_end(index); 
 	return;
 }
 
@@ -202,9 +201,9 @@ female(uint32_t index)
 	 * Implement this function by calling female_start and female_end when
 	 * appropriate.
 	 */
+	 female_start(index);
 	 lock_acquire(female_lock);
 	 // kprintf_n(" Female %d enter, female_count is %d \n", index,female_count);
-	 female_start(index);
 	 while(female_count > 0){
 	 	// Wait on the female channel
 		// kprintf_n(" Female %d waiting on female channel \n", index);
@@ -226,10 +225,9 @@ female(uint32_t index)
  	 cv_broadcast(mating_cv, mating_lock);
 	 female_count--;
 	 lock_release(mating_lock);	
-	 female_end(index);
-	 
 	 cv_signal(female_cv,female_lock);
 	 lock_release(female_lock);
+	 female_end(index);
 	return;
 }
 
@@ -241,9 +239,10 @@ matchmaker(uint32_t index)
 	 * Implement this function by calling matchmaker_start and matchmaker_end
 	 * when appropriate.
 	 */
-	 lock_acquire(matchmaker_lock);
+	 
   	 // kprintf_n(" Maker %d enter and maker count is %d \n", index,matchmaker_count);
 	 matchmaker_start(index); 
+	 lock_acquire(matchmaker_lock);
 	 while(matchmaker_count > 0){
 	 	// Wait on the matchmaker channel
  		// kprintf_n(" Maker %d waiting on Maker channel as maker count is %d \n", index,matchmaker_count);
@@ -265,8 +264,8 @@ matchmaker(uint32_t index)
  	 cv_broadcast(mating_cv, mating_lock);
 	 matchmaker_count--;
 	 lock_release(mating_lock);
-	 matchmaker_end(index);
 	 cv_signal(matchmaker_cv, matchmaker_lock);
 	 lock_release(matchmaker_lock);
+	matchmaker_end(index);
 	return;
 }
