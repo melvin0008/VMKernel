@@ -4,7 +4,7 @@
  */
 
 #define CREATELOOPS 8
-#define NTHREADS 32
+#define NTHREADS 5
 
 
 #include <types.h>
@@ -148,8 +148,8 @@ int rwtest2(int nargs, char **args) {
     int i, result;
     char name[32];
     kprintf_n("Starting rwt2...\n");
-    start_count_lock = lock_create("start_count_lock");
-    startcv = cv_create("startcv");
+    start_count_lock = lock_create("start_count_lock2");
+    startcv = cv_create("startcv2");
     for (i=0; i<CREATELOOPS; i++) {
         kprintf_t(".");
         testlock = rwlock_create("testlock");

@@ -36,7 +36,7 @@
 
 
 #include <spinlock.h>
-#define MAX_READERS 48
+#define MAX_READERS 10
 
 /*
  * Dijkstra-style semaphore.
@@ -155,9 +155,14 @@ void cv_broadcast(struct cv *cv, struct lock *lock);
  */
 
 struct rwlock {
-        char *rwlock_name;
+        char *rw_name;
         struct lock *lock;
-        struct semaphore *semaphore;
+        
+        struct spinlock rw_spin_lock;
+        struct wchan *rw_wchan;
+        
+        volatile int no_of_readers;
+        volatile bool writer_present;
         // add what you need here
         // (don't forget to mark things volatile as needed)
 };
