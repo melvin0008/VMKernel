@@ -156,10 +156,9 @@ void cv_broadcast(struct cv *cv, struct lock *lock);
 
 struct rwlock {
         char *rw_name;
-        struct lock *lock;
         
-        struct spinlock rw_spin_lock;
-        struct wchan *rw_wchan;
+        struct lock *lock;
+        struct cv *cv;
         
         volatile int no_of_readers;
         volatile bool writer_present;

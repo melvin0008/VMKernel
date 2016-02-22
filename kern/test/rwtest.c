@@ -4,7 +4,7 @@
  */
 
 #define CREATELOOPS 8
-#define NTHREADS 5
+#define NTHREADS 9
 
 
 #include <types.h>
