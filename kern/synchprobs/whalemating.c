@@ -65,64 +65,65 @@ void whalemating_init() {
 	/*
 	* Initialize all counts to zero
 	*/
-	male_count = female_count = matchmaker_count = 0;
-	mating_count = 1;
 	
 	/*
 	* Create locks for manipulating counts
 	*/
-	if (male_lock==NULL) {
+	// if (male_lock==NULL) {
 		male_lock = lock_create("male_lock");
 		if (male_lock == NULL) {
 			panic("male_lock: lock_create failed\n");
 		}
-	}
-	if (female_lock==NULL) {
+	// }
+	// if (female_lock==NULL) {
 		female_lock = lock_create("female_lock");
 		if (female_lock == NULL) {
 			panic("female_lock: lock_create failed\n");
 		}
-	}
-	if (matchmaker_lock==NULL) {
+	// }
+	// if (matchmaker_lock==NULL) {
 		matchmaker_lock = lock_create("matchmaker_lock");
 		if (matchmaker_lock == NULL) {
 			panic("matchmaker_lock: lock_create failed\n");
 		}
-	}
-	if (mating_lock==NULL) {
+	// }
+	// if (mating_lock==NULL) {
 		mating_lock = lock_create("mating_lock");
 		if (mating_lock == NULL) {
 			panic("mating_lock: lock_create failed\n");
 		}
-	}
+	// }
 
 	/*
 	* Create conditinon variables till we find suitable other halves
 	*/
-	if (male_cv==NULL) {
+	// if (male_cv==NULL) {
 		male_cv = cv_create("male_cv");
 		if (male_cv == NULL) {
 			panic("male_cv: cv_create failed\n");
 		}
-	}
-	if (female_cv==NULL) {
+	// }
+	// if (female_cv==NULL) {
 		female_cv = cv_create("female_cv");
 		if (female_cv == NULL) {
 			panic("female_cv: cv_create failed\n");
 		}
-	}
-	if (matchmaker_cv==NULL) {
+	// }
+	// if (matchmaker_cv==NULL) {
 		matchmaker_cv = cv_create("matchmaker_cv");
 		if (matchmaker_cv == NULL) {
 			panic("matchmaker_cv: cv_create failed\n");
 		}
-	}
-	if (mating_cv==NULL) {
+	// }
+	// if (mating_cv==NULL) {
 		mating_cv = cv_create("mating_cv");
 		if (mating_cv == NULL) {
 			panic("mating_cv: cv_create failed\n");
 		}
-	}
+	// }
+		male_count = female_count = matchmaker_count = 0;
+	mating_count = 1;
+	
 	return;
 }
 
@@ -162,8 +163,8 @@ male(uint32_t index)
 	 * appropriate.
 	 */
 	 // TODO Add kasserts
-	 lock_acquire(male_lock);
 	 male_start(index);
+	 lock_acquire(male_lock);
 	 // kprintf_n(" Male %d enter, male_count is %d \n", index,male_count);
 	 while(male_count > 0){
 	 	// Wait on the male channel
@@ -188,8 +189,8 @@ male(uint32_t index)
 	 
 	 lock_release(mating_lock);	
 	 cv_signal(male_cv,male_lock);
-	 male_end(index); 
 	 lock_release(male_lock);
+	 male_end(index); 
 	return;
 }
 
@@ -201,8 +202,8 @@ female(uint32_t index)
 	 * Implement this function by calling female_start and female_end when
 	 * appropriate.
 	 */
-	 lock_acquire(female_lock);
 	 female_start(index);
+	 lock_acquire(female_lock);
 	 // kprintf_n(" Female %d enter, female_count is %d \n", index,female_count);
 	 while(female_count > 0){
 	 	// Wait on the female channel
@@ -226,8 +227,8 @@ female(uint32_t index)
 	 female_count--;
 	 lock_release(mating_lock);	
 	 cv_signal(female_cv,female_lock);
-	 female_end(index);
 	 lock_release(female_lock);
+	 female_end(index);
 	return;
 }
 

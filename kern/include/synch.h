@@ -155,9 +155,11 @@ void cv_broadcast(struct cv *cv, struct lock *lock);
  */
 
 struct rwlock {
-        char *rwlock_name;
+        char *rw_name;
         struct lock *lock;
-        struct semaphore *semaphore;
+        struct cv *cv;
+        volatile int no_of_readers;
+        volatile bool writer_present;
         // add what you need here
         // (don't forget to mark things volatile as needed)
 };

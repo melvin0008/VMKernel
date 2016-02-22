@@ -339,23 +339,26 @@ rwlock_create(const char *name)
 		return NULL;
 	}
 
-	rw_lock->rwlock_name = kstrdup(name);
-	if (rw_lock->rwlock_name == NULL) {
+	rw_lock->rw_name = kstrdup(name);
+	if (rw_lock->rw_name == NULL) {
 		kfree(rw_lock);
 		return NULL;
 	}
 
-	rw_lock->lock = lock_create(kstrdup(name));
+	rw_lock->lock = lock_create(rw_lock->rw_name);
 	if (rw_lock->lock == NULL) {
 		kfree(rw_lock);
 		return NULL;
 	}
 
-	rw_lock->semaphore = sem_create(kstrdup(name),MAX_READERS);
-	if (rw_lock->semaphore == NULL) {
+	rw_lock->cv = cv_create(rw_lock->rw_name);
+	if (rw_lock->cv == NULL) {
+		kfree(rw_lock->rw_name);
 		kfree(rw_lock);
 		return NULL;
 	}
+	rw_lock->writer_present = false;
+	rw_lock->no_of_readers = 0;
 	return rw_lock;
 }
 
@@ -365,8 +368,8 @@ rwlock_destroy(struct rwlock *rw_lock)
 	KASSERT(rw_lock != NULL);
 	// Destroy structure components
 	lock_destroy(rw_lock->lock);
-	sem_destroy(rw_lock->semaphore);
-	kfree(rw_lock->rwlock_name);
+	cv_destroy(rw_lock->cv);
+	kfree(rw_lock->rw_name);
 	kfree(rw_lock);
 	rw_lock=NULL;
 }
@@ -376,7 +379,10 @@ void rwlock_acquire_read(struct rwlock *rw_lock)
 {
 	KASSERT(rw_lock != NULL);
 	lock_acquire(rw_lock->lock);
-	P(rw_lock->semaphore);
+	while(rw_lock->writer_present || rw_lock->no_of_readers == MAX_READERS){
+		cv_wait(rw_lock->cv,rw_lock->lock);
+	}
+	rw_lock->no_of_readers++;
 	lock_release(rw_lock->lock);
 	return;
 };
@@ -384,20 +390,24 @@ void rwlock_acquire_read(struct rwlock *rw_lock)
 void rwlock_release_read(struct rwlock *rw_lock)
 {
 	KASSERT(rw_lock != NULL);
-	V(rw_lock->semaphore);
+	
+	lock_acquire(rw_lock->lock);
+	KASSERT(rw_lock->no_of_readers > 0);
+	rw_lock->no_of_readers--;
+	cv_signal(rw_lock->cv,rw_lock->lock);
+	lock_release(rw_lock->lock);
 	return;
 };
 // Acquires a write lock
 void rwlock_acquire_write(struct rwlock *rw_lock)
 {
 	KASSERT(rw_lock != NULL);
-	int i;
 	lock_acquire(rw_lock->lock);
-	// Call P (exhaust) for all the resources for exclusive access
-	for (i = 0; i < MAX_READERS; ++i)
+	while (rw_lock->writer_present && rw_lock->no_of_readers > 0)
 	{
-		P(rw_lock->semaphore);
+		cv_wait(rw_lock->cv,rw_lock->lock);
 	}
+	rw_lock->writer_present = true;
 	lock_release(rw_lock->lock);
 	return;
 };
@@ -405,10 +415,9 @@ void rwlock_acquire_write(struct rwlock *rw_lock)
 void rwlock_release_write(struct rwlock *rw_lock)
 {
 	KASSERT(rw_lock != NULL);
-	int i;
-	for (i = 0; i < MAX_READERS; ++i)
-	{
-		V(rw_lock->semaphore);
-	}
+	lock_acquire(rw_lock->lock);
+	rw_lock->writer_present = false;
+	cv_signal(rw_lock->cv,rw_lock->lock);
+	lock_release(rw_lock->lock);
 	return;
 };
