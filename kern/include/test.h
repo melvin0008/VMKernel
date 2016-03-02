@@ -65,6 +65,7 @@ int cvtest(int, char **);
 int cvtest2(int, char **);
 int cvtest3(int, char **);
 int cvtest4(int, char **);
+int cvtest5(int, char **);
 int rwtest(int, char **);
 int rwtest2(int, char **);
 int rwtest3(int, char **);
@@ -176,13 +177,6 @@ int dltest(int, char **);
 int ll1test(int, char **);
 int ll16test(int, char **);
 #endif
-
-#define SUCCESS 0
-#define FAIL 1
-
-int success(bool, const char *, const char *);
-
-int ksecprintf(const char *secret, const char *msg, const char *name);
 
 void random_yielder(uint32_t);
 void random_spinner(uint32_t);

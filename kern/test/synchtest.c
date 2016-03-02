@@ -40,7 +40,7 @@
 #include <thread.h>
 #include <synch.h>
 #include <test.h>
-#include <kern/secret.h>
+#include <kern/test161.h>
 #include <spinlock.h>
 
 #define CREATELOOPS		8
@@ -56,12 +56,14 @@ static volatile unsigned long testval3;
 static volatile int32_t testval4;
 
 static struct semaphore *testsem = NULL;
+static struct semaphore *testsem2 = NULL;
 static struct lock *testlock = NULL;
+static struct lock *testlock2 = NULL;
 static struct cv *testcv = NULL;
 static struct semaphore *donesem = NULL;
 
 struct spinlock status_lock;
-static bool test_status = FAIL;
+static bool test_status = TEST161_FAIL;
 
 static unsigned long semtest_current;
 
@@ -70,7 +72,7 @@ bool
 failif(bool condition) {
 	if (condition) {
 		spinlock_acquire(&status_lock);
-		test_status = FAIL;
+		test_status = TEST161_FAIL;
 		spinlock_release(&status_lock);
 	}
 	return condition;
@@ -129,7 +131,7 @@ semtest(int nargs, char **args)
 		}
 	}
 	spinlock_init(&status_lock);
-	test_status = SUCCESS;
+	test_status = TEST161_SUCCESS;
 
 	kprintf_n("If this hangs, it's broken: ");
 	P(testsem);
@@ -262,7 +264,7 @@ locktest(int nargs, char **args)
 		}
 	}
 	spinlock_init(&status_lock);
-	test_status = SUCCESS;
+	test_status = TEST161_SUCCESS;
 
 	for (i=0; i<NTHREADS; i++) {
 		kprintf_t(".");
@@ -292,26 +294,20 @@ locktest2(int nargs, char **args) {
 	(void)nargs;
 	(void)args;
 
-	int i;
-
 	kprintf_n("Starting lt2...\n");
 	kprintf_n("(This test panics on success!)\n");
-	for (i=0; i<CREATELOOPS; i++) {
-		testlock = lock_create("testlock");
-		if (testlock == NULL) {
-			panic("lt2: lock_create failed\n");
-		}
-		if (i != CREATELOOPS - 1) {
-			lock_destroy(testlock);
-		}
+
+	testlock = lock_create("testlock");
+	if (testlock == NULL) {
+		panic("lt2: lock_create failed\n");
 	}
 
-	ksecprintf(SECRET, "Should panic...", "lt2");
+	secprintf(SECRET, "Should panic...", "lt2");
 	lock_release(testlock);
 
 	/* Should not get here on success. */
 
-	success(FAIL, SECRET, "lt2");
+	success(TEST161_FAIL, SECRET, "lt2");
 
 	lock_destroy(testlock);
 	testlock = NULL;
@@ -324,27 +320,21 @@ locktest3(int nargs, char **args) {
 	(void)nargs;
 	(void)args;
 
-	int i;
-
 	kprintf_n("Starting lt3...\n");
 	kprintf_n("(This test panics on success!)\n");
-	for (i=0; i<CREATELOOPS; i++) {
-		testlock = lock_create("testlock");
-		if (testlock == NULL) {
-			panic("lt3: lock_create failed\n");
-		}
-		if (i != CREATELOOPS - 1) {
-			lock_destroy(testlock);
-		}
+
+	testlock = lock_create("testlock");
+	if (testlock == NULL) {
+		panic("lt3: lock_create failed\n");
 	}
 
-	ksecprintf(SECRET, "Should panic...", "lt3");
+	secprintf(SECRET, "Should panic...", "lt3");
 	lock_acquire(testlock);
 	lock_destroy(testlock);
 
 	/* Should not get here on success. */
 
-	success(FAIL, SECRET, "lt3");
+	success(TEST161_FAIL, SECRET, "lt3");
 
 	testlock = NULL;
 
@@ -419,7 +409,7 @@ cvtest(int nargs, char **args)
 		kprintf_t(".");
 		testlock = lock_create("testlock");
 		if (testlock == NULL) {
-			panic("lockt1: lock_create failed\n");
+			panic("cvt1: lock_create failed\n");
 		}
 		testcv = cv_create("testcv");
 		if (testcv == NULL) {
@@ -436,7 +426,7 @@ cvtest(int nargs, char **args)
 		}
 	}
 	spinlock_init(&status_lock);
-	test_status = SUCCESS;
+	test_status = TEST161_SUCCESS;
 
 	testval1 = NTHREADS-1;
 	for (i=0; i<NTHREADS; i++) {
@@ -489,7 +479,7 @@ sleepthread(void *junk1, unsigned long junk2)
 	(void)junk2;
 
 	unsigned i, j;
-	
+
 	random_yielder(4);
 
 	for (j=0; j<NLOOPS; j++) {
@@ -546,7 +536,7 @@ cvtest2(int nargs, char **args)
 {
 	(void)nargs;
 	(void)args;
-	
+
 	unsigned i;
 	int result;
 
@@ -572,7 +562,7 @@ cvtest2(int nargs, char **args)
 		testcvs[i] = cv_create("cvtest2 cv");
 	}
 	spinlock_init(&status_lock);
-	test_status = SUCCESS;
+	test_status = TEST161_SUCCESS;
 
 	result = thread_fork("cvt2", NULL, sleepthread, NULL, 0);
 	if (result) {
@@ -607,31 +597,24 @@ cvtest3(int nargs, char **args) {
 	(void)nargs;
 	(void)args;
 
-	int i;
-	
 	kprintf_n("Starting cvt3...\n");
 	kprintf_n("(This test panics on success!)\n");
-	for (i=0; i<CREATELOOPS; i++) {
-		testlock = lock_create("testlock");
-		if (testlock == NULL) {
-			panic("lockt1: lock_create failed\n");
-		}
-		testcv = cv_create("testcv");
-		if (testcv == NULL) {
-			panic("cvt1: cv_create failed\n");
-		}
-		if (i != CREATELOOPS - 1) {
-			lock_destroy(testlock);
-			cv_destroy(testcv);
-		}
+
+	testlock = lock_create("testlock");
+	if (testlock == NULL) {
+		panic("cvt3: lock_create failed\n");
+	}
+	testcv = cv_create("testcv");
+	if (testcv == NULL) {
+		panic("cvt3: cv_create failed\n");
 	}
 
-	ksecprintf(SECRET, "Should panic...", "cvt3");
+	secprintf(SECRET, "Should panic...", "cvt3");
 	cv_wait(testcv, testlock);
 
 	/* Should not get here on success. */
 
-	success(FAIL, SECRET, "cvt3");
+	success(TEST161_FAIL, SECRET, "cvt3");
 
 	lock_destroy(testlock);
 	cv_destroy(testcv);
@@ -646,36 +629,144 @@ cvtest4(int nargs, char **args) {
 	(void)nargs;
 	(void)args;
 
-	int i;
-	
 	kprintf_n("Starting cvt4...\n");
 	kprintf_n("(This test panics on success!)\n");
-	for (i=0; i<CREATELOOPS; i++) {
-		testlock = lock_create("testlock");
-		if (testlock == NULL) {
-			panic("lockt1: lock_create failed\n");
-		}
-		testcv = cv_create("testcv");
-		if (testcv == NULL) {
-			panic("cvt1: cv_create failed\n");
-		}
-		if (i != CREATELOOPS - 1) {
-			lock_destroy(testlock);
-			cv_destroy(testcv);
-		}
+
+	testlock = lock_create("testlock");
+	if (testlock == NULL) {
+		panic("cvt4: lock_create failed\n");
+	}
+	testcv = cv_create("testcv");
+	if (testcv == NULL) {
+		panic("cvt4: cv_create failed\n");
 	}
 
-	ksecprintf(SECRET, "Should panic...", "cvt4");
+	secprintf(SECRET, "Should panic...", "cvt4");
 	cv_broadcast(testcv, testlock);
 
 	/* Should not get here on success. */
 
-	success(FAIL, SECRET, "cvt4");
+	success(TEST161_FAIL, SECRET, "cvt4");
 
 	lock_destroy(testlock);
 	cv_destroy(testcv);
 	testcv = NULL;
 	testlock = NULL;
+
+	return 0;
+}
+
+static
+void
+sleeperthread(void *junk1, unsigned long junk2) {
+	(void)junk1;
+	(void)junk2;
+
+	random_yielder(4);
+	lock_acquire(testlock);
+	random_yielder(4);
+	failif((testval1 != 0));
+	testval1 = 1;
+	cv_signal(testcv, testlock);
+
+	random_yielder(4);
+	cv_wait(testcv, testlock);
+	failif((testval1 != 3));
+	testval1 = 4;
+	random_yielder(4);
+	lock_release(testlock);
+	random_yielder(4);
+
+	V(exitsem);
+}
+
+static
+void
+wakerthread(void *junk1, unsigned long junk2) {
+	(void)junk1;
+	(void)junk2;
+
+	random_yielder(4);
+	lock_acquire(testlock2);
+	failif((testval1 != 2));
+	testval1 = 3;
+
+	random_yielder(4);
+	cv_signal(testcv, testlock2);
+	random_yielder(4);
+	lock_release(testlock2);
+	random_yielder(4);
+
+	V(exitsem);
+}
+
+int
+cvtest5(int nargs, char **args) {
+	(void)nargs;
+	(void)args;
+
+	int result;
+
+	kprintf_n("Starting cvt5...\n");
+
+	testlock = lock_create("testlock");
+	if (testlock == NULL) {
+		panic("cvt5: lock_create failed\n");
+	}
+	testlock2 = lock_create("testlock2");
+	if (testlock == NULL) {
+		panic("cvt5: lock_create failed\n");
+	}
+	testcv = cv_create("testcv");
+	if (testcv == NULL) {
+		panic("cvt5: cv_create failed\n");
+	}
+	exitsem = sem_create("exitsem", 0);
+	if (exitsem == NULL) {
+		panic("cvt5: sem_create failed\n");
+	}
+	spinlock_init(&status_lock);
+	test_status = TEST161_SUCCESS;
+	testval1 = 0;
+
+	lock_acquire(testlock);
+	lock_acquire(testlock2);
+
+	result = thread_fork("cvt5", NULL, sleeperthread, NULL, 0);
+	if (result) {
+		panic("cvt5: thread_fork failed\n");
+	}
+	result = thread_fork("cvt5", NULL, wakerthread, NULL, 0);
+	if (result) {
+		panic("cvt5: thread_fork failed\n");
+	}
+
+	random_yielder(4);
+	cv_wait(testcv, testlock);
+	failif((testval1 != 1));
+	testval1 = 2;
+	random_yielder(4);
+	lock_release(testlock);
+	random_yielder(4);
+	lock_release(testlock2);
+
+	P(exitsem);
+	P(exitsem);
+	failif((testval1 != 4));
+
+	sem_destroy(exitsem);
+	cv_destroy(testcv);
+	lock_destroy(testlock2);
+	lock_destroy(testlock);
+
+	success(test_status, SECRET, "cvt5");
+
+	exitsem = NULL;
+	testcv = NULL;
+	testlock2 = NULL;
+	testlock = NULL;
+	testsem2 = NULL;
+	testsem = NULL;
 
 	return 0;
 }

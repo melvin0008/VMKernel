@@ -9,14 +9,14 @@
 #include <test.h>
 #include <current.h>
 #include <synch.h>
-#include <kern/secret.h>
+#include <kern/test161.h>
 #include <spinlock.h>
 
 #define PROBLEMS_MAX_YIELDER 16
 #define PROBLEMS_MAX_SPINNER 8192
 
-#define SUCCESS 0
-#define FAIL 1
+#define TEST161_SUCCESS 0
+#define TEST161_FAIL 1
 
 /*
  * Shared initialization routines
@@ -29,7 +29,7 @@ static struct semaphore *startsem;
 static struct semaphore *endsem;
 
 struct spinlock status_lock;
-static bool test_status = FAIL;
+static bool test_status = TEST161_FAIL;
 const char *test_message;
 
 static
@@ -37,7 +37,7 @@ bool
 failif(bool condition, const char *message) {
 	if (condition) {
 		spinlock_acquire(&status_lock);
-		test_status = FAIL;
+		test_status = TEST161_FAIL;
 		test_message = message;
 		spinlock_release(&status_lock);
 	}
@@ -81,8 +81,9 @@ static volatile int female_end_count;
 static volatile int matchmaker_start_count;
 static volatile int matchmaker_end_count;
 static volatile int match_count;
+static volatile int concurrent_matchmakers;
+static volatile int max_concurrent_matchmakers;
 
-static volatile int match_status[3 * NMATING];
 static volatile void* whale_threads[3 * NMATING];
 static volatile int whale_roles[3 * NMATING];
 static struct semaphore *matcher_sem;
@@ -118,11 +119,11 @@ male_start(uint32_t index) {
 	check_thread(whale_threads, index);
 	check_role(index, MALE);
 	male_start_count++;
+	kprintf_n("%s starting\n", curthread->t_name);
+	kprintf_t(".");
 	lock_release(testlock);
 	random_yielder(PROBLEMS_MAX_YIELDER);
 	random_spinner(PROBLEMS_MAX_SPINNER);
-	kprintf_n("%s starting\n", curthread->t_name);
-	kprintf_t(".");
 	V(startsem);
 }
 void
@@ -132,11 +133,11 @@ male_end(uint32_t index) {
 	check_thread(whale_threads, index);
 	check_role(index, MALE);
 	male_end_count++;
+	kprintf_n("%s ending\n", curthread->t_name);
+	kprintf_t(".");
 	lock_release(testlock);
 	random_yielder(PROBLEMS_MAX_YIELDER);
 	random_spinner(PROBLEMS_MAX_SPINNER);
-	kprintf_n("%s ending\n", curthread->t_name);
-	kprintf_t(".");
 	V(endsem);
 }
 
@@ -161,11 +162,11 @@ female_start(uint32_t index) {
 	check_thread(whale_threads, index);
 	check_role(index, FEMALE);
 	female_start_count++;
+	kprintf_n("%s starting\n", curthread->t_name);
+	kprintf_t(".");
 	lock_release(testlock);
 	random_yielder(PROBLEMS_MAX_YIELDER);
 	random_spinner(PROBLEMS_MAX_SPINNER);
-	kprintf_n("%s starting\n", curthread->t_name);
-	kprintf_t(".");
 	V(startsem);
 }
 void
@@ -175,11 +176,11 @@ female_end(uint32_t index) {
 	check_thread(whale_threads, index);
 	check_role(index, FEMALE);
 	female_end_count++;
+	kprintf_n("%s ending\n", curthread->t_name);
+	kprintf_t(".");
 	lock_release(testlock);
 	random_yielder(PROBLEMS_MAX_YIELDER);
 	random_spinner(PROBLEMS_MAX_SPINNER);
-	kprintf_n("%s ending\n", curthread->t_name);
-	kprintf_t(".");
 	V(endsem);
 }
 
@@ -205,11 +206,15 @@ matchmaker_start(uint32_t index) {
 	check_thread(whale_threads, index);
 	check_role(index, MATCHMAKER);
 	matchmaker_start_count++;
+	concurrent_matchmakers++;
+	if (concurrent_matchmakers > max_concurrent_matchmakers) {
+		max_concurrent_matchmakers = concurrent_matchmakers;
+	}
+	kprintf_n("%s starting\n", curthread->t_name);
+	kprintf_t(".");
 	lock_release(testlock);
 	random_yielder(PROBLEMS_MAX_YIELDER);
 	random_spinner(PROBLEMS_MAX_SPINNER);
-	kprintf_n("%s starting\n", curthread->t_name);
-	kprintf_t(".");
 	V(startsem);
 }
 void
@@ -218,19 +223,14 @@ matchmaker_end(uint32_t index) {
 	lock_acquire(testlock);
 	check_thread(whale_threads, index);
 	check_role(index, MATCHMAKER);
-
-	int i = match_count * 3;
-	match_status[i] = male_start_count - male_end_count;
-	match_status[i+1] = female_start_count - female_end_count;
-	match_status[i+2] = matchmaker_start_count - matchmaker_end_count;
-
 	match_count++;
 	matchmaker_end_count++;
+	concurrent_matchmakers--;
+	kprintf_n("%s ending\n", curthread->t_name);
+	kprintf_t(".");
 	lock_release(testlock);
 	random_yielder(PROBLEMS_MAX_YIELDER);
 	random_spinner(PROBLEMS_MAX_SPINNER);
-	kprintf_n("%s ending\n", curthread->t_name);
-	kprintf_t(".");
 	V(endsem);
 }
 
@@ -259,7 +259,12 @@ whalemating(int nargs, char **args) {
 	matchmaker_start_count = 0;
 	matchmaker_end_count = 0;
 	match_count = 0;
-	
+	concurrent_matchmakers = 0;
+	max_concurrent_matchmakers = 0;
+
+	kprintf_n("Starting sp1...\n");
+	kprintf_n("If this tests hangs, your solution is incorrect.\n");
+
 	testlock = lock_create("testlock");
 	if (testlock == NULL) {
 		panic("sp1: lock_create failed\n");
@@ -277,7 +282,7 @@ whalemating(int nargs, char **args) {
 		panic("sp1: sem_create failed\n");
 	}
 	spinlock_init(&status_lock);
-	test_status = SUCCESS;
+	test_status = TEST161_SUCCESS;
 	test_message = "";
 
 	whalemating_init();
@@ -300,7 +305,7 @@ whalemating(int nargs, char **args) {
 			}
 			total_count += 1;
 			if (err) {
-				panic("whalemating: thread_fork failed: (%s)\n", strerror(err));
+				panic("sp1: thread_fork failed: (%s)\n", strerror(err));
 			}
 		}
 
@@ -312,18 +317,18 @@ whalemating(int nargs, char **args) {
 	}
 	
 	/* Make sure nothing is happening... */
-	loop_status = SUCCESS;
-	for (i = 0; i < CHECK_TIMES && loop_status == SUCCESS; i++) {
+	loop_status = TEST161_SUCCESS;
+	for (i = 0; i < CHECK_TIMES && loop_status == TEST161_SUCCESS; i++) {
 		kprintf_t(".");
 		random_spinner(PROBLEMS_MAX_SPINNER);
 		lock_acquire(testlock);
 		if ((male_start_count != NMATING) || (female_start_count != NMATING) ||
 				(matchmaker_start_count + male_end_count + female_end_count + matchmaker_end_count != 0)) {
-			loop_status = FAIL;
+			loop_status = TEST161_FAIL;
 		}
 		lock_release(testlock);
 	}
-	if (failif((loop_status == FAIL), "failed: uncoordinated matchmaking is occurring")) {
+	if (failif((loop_status == TEST161_FAIL), "failed: uncoordinated matchmaking is occurring")) {
 		goto done;
 	}
 
@@ -335,7 +340,7 @@ whalemating(int nargs, char **args) {
 		snprintf(name, sizeof(name), "Matchmaker Whale Thread %d", index);
 		err = thread_fork(name, NULL, matchmaker_wrapper, NULL, index);
 		if (err) {
-			panic("whalemating: thread_fork failed: (%s)\n", strerror(err));
+			panic("sp1: thread_fork failed: (%s)\n", strerror(err));
 		}
 		total_count++;
 	}
@@ -356,19 +361,19 @@ whalemating(int nargs, char **args) {
 	}
 
 	/* Make sure nothing else is happening... */
-	loop_status = SUCCESS;
-	for (i = 0; i < CHECK_TIMES && loop_status == SUCCESS; i++) {
+	loop_status = TEST161_SUCCESS;
+	for (i = 0; i < CHECK_TIMES && loop_status == TEST161_SUCCESS; i++) {
 		kprintf_t(".");
 		random_spinner(PROBLEMS_MAX_SPINNER);
 		lock_acquire(testlock);
 		if ((male_start_count != NMATING) || (female_start_count != NMATING) ||
 				(matchmaker_start_count != pivot) || (male_end_count != pivot) ||
 				(female_end_count != pivot) || (matchmaker_end_count != pivot)) {
-			loop_status = FAIL;
+			loop_status = TEST161_FAIL;
 		}
 		lock_release(testlock);
 	}
-	if (failif((loop_status == FAIL), "failed: uncoordinated matchmaking is occurring")) {
+	if (failif((loop_status == TEST161_FAIL), "failed: uncoordinated matchmaking is occurring")) {
 		goto done;
 	}
 
@@ -388,26 +393,9 @@ whalemating(int nargs, char **args) {
 		}
 	}
 
+	failif((max_concurrent_matchmakers == 1), "failed: no matchmaker concurrency");
+
 	whalemating_cleanup();
-
-	check_zero(male_start_count - NMATING);
-	check_zero(female_start_count - NMATING);
-	check_zero(matchmaker_start_count - NMATING);
-	check_zero(male_start_count - male_end_count);
-	check_zero(female_start_count - female_end_count);
-	check_zero(matchmaker_start_count - matchmaker_end_count);
-
-	if (match_count == NMATING) {
-		for (i = 0; i < NMATING; i++) {
-			kprintf_t(".");
-			j = i * 3;
-			int male = match_status[j];
-			int female = match_status[j + 1];
-			failif((male == 0 || female == 0), "failed: not all males were matched");
-		}
-	} else {
-		failif(true, "failed: not all males were matched");
-	}
 
 done:
 	for (i = 0; i < total_count; i++) {
@@ -420,8 +408,8 @@ done:
 	sem_destroy(matcher_sem);
 
 	kprintf_t("\n");
-	if (test_status != SUCCESS) {
-		ksecprintf(SECRET, test_message, "sp1");
+	if (test_status != TEST161_SUCCESS) {
+		secprintf(SECRET, test_message, "sp1");
 	}
 	success(test_status, SECRET, "sp1");
 
@@ -622,6 +610,9 @@ int stoplight(int nargs, char **args) {
 	max_car_count = 0;
 	all_quadrant = 0;
 
+	kprintf_n("Starting sp2...\n");
+	kprintf_n("If this tests hangs, your solution is incorrect.\n");
+
 	for (i = 0; i < NUM_QUADRANTS; i++) {
 		quadrant_array[i] = 0;
 	}
@@ -646,7 +637,7 @@ int stoplight(int nargs, char **args) {
 		panic("sp2: sem_create failed\n");
 	}
 	spinlock_init(&status_lock);
-	test_status = SUCCESS;
+	test_status = TEST161_SUCCESS;
 
 	stoplight_init();
 
@@ -673,7 +664,7 @@ int stoplight(int nargs, char **args) {
 			break;
 		}
 		if (err) {
-			panic("stoplight: thread_fork failed: (%s)\n", strerror(err));
+			panic("sp2: thread_fork failed: (%s)\n", strerror(err));
 		}
 	}
 
@@ -687,7 +678,7 @@ int stoplight(int nargs, char **args) {
 	for (i = 0; i < NCARS; i++) {
 		passed += car_locations[i] == PASSED_CAR ? 1 : 0;
 	}
-	if ((test_status == SUCCESS) &&
+	if ((test_status == TEST161_SUCCESS) &&
 			(!(failif((passed != NCARS), "failed: not enough cars"))) &&
 			(!(failif((all_quadrant != required_quadrant), "failed: didn't do the right turns"))) &&
 			(!(failif((max_car_count <= 1), "failed: no concurrency achieved")))) {};
@@ -697,8 +688,8 @@ int stoplight(int nargs, char **args) {
 	sem_destroy(endsem);
 
 	kprintf_t("\n");
-	if (test_status != SUCCESS) {
-		ksecprintf(SECRET, test_message, "sp2");
+	if (test_status != TEST161_SUCCESS) {
+		secprintf(SECRET, test_message, "sp2");
 	}
 	success(test_status, SECRET, "sp2");
 
