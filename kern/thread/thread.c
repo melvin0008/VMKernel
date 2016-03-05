@@ -148,6 +148,10 @@ thread_create(const char *name)
 
 	/* If you add to struct thread, be sure to initialize here */
 
+	// Initialize all file table entries ti NULL
+	for(int i = 0; i < OPEN_MAX; i += 1){
+		thread->t_ftable[i] = NULL;
+	}
 	return thread;
 }
 
@@ -281,6 +285,14 @@ thread_destroy(struct thread *thread)
 	thread->t_wchan_name = "DESTROYED";
 
 	kfree(thread->t_name);
+
+	for(int i = 0; i < OPEN_MAX; i += 1){
+		if(thread->t_ftable[i]->ref_count == 1){
+			kfree(thread->t_ftable[i]);
+		}
+	}
+	kfree(thread->t_ftable)
+
 	kfree(thread);
 }
 

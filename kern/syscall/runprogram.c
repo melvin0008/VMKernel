@@ -107,3 +107,7 @@ runprogram(char *progname)
 	return EINVAL;
 }
 
+void
+init_console(struct fhandle *fh, ...){ // Add remaining flags
+
+}
