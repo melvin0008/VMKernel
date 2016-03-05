@@ -234,12 +234,11 @@ matchmaker_end(uint32_t index) {
 	V(endsem);
 }
 
-
-// static
-// void
-// check_zero(int count) {
-// 	failif((count != 0), "failed: not all threads completed");
-// }
+static
+void
+check_zero(int count) {
+	failif((count != 0), "failed: not all threads completed");
+}
 
 int
 whalemating(int nargs, char **args) {
@@ -309,7 +308,6 @@ whalemating(int nargs, char **args) {
 		}
 
 	}
-
 	/* Wait for males and females to start. */
 	for (i = 0; i < NMATING * 2; i++) {
 		kprintf_t(".");

@@ -5,7 +5,8 @@
 
 #define CREATELOOPS 8
 #define NTHREADS 32
-
+#define FAIL 1
+#define SUCCESS 0
 
 #include <types.h>
 #include <lib.h>
@@ -139,7 +140,6 @@ int rwtest(int nargs, char **args) {
     test_status = SUCCESS;
     kprintf_t("\n");
 	success(test_status, SECRET, "rwt1");
-
 	return 0;
 }
 
