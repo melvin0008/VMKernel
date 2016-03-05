@@ -24,8 +24,6 @@ static struct rwlock *testlock = NULL;
 static struct semaphore *donesem;
 static bool test_status = FAIL;
 
-
-
 static
 void 
 reader_thread(unsigned long num){

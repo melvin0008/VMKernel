@@ -39,7 +39,7 @@
 #include <array.h>
 #include <spinlock.h>
 #include <threadlist.h>
-
+#include <limits.h>
 struct cpu;
 
 /* get machine-dependent defs */
@@ -104,6 +104,7 @@ struct thread {
 	/*
 	 * Public fields
 	 */
+	struct fhandle *ftable[OPEN_MAX];
 
 	/* add more here as needed */
 };
