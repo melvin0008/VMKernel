@@ -35,6 +35,7 @@
 #include <thread.h>
 #include <current.h>
 #include <syscall.h>
+#include <file_syscall.h>
 
 
 /*
@@ -107,6 +108,10 @@ syscall(struct trapframe *tf)
 	    case SYS___time:
 		err = sys___time((userptr_t)tf->tf_a0,
 				 (userptr_t)tf->tf_a1);
+		break;
+
+		case SYS_open:
+		err = sys_open((userptr_t)tf->tf_a0,tf->tf_a1,&retval);
 		break;
 
 	    /* Add stuff here */
