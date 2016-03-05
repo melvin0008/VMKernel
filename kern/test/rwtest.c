@@ -5,7 +5,8 @@
 
 #define CREATELOOPS 8
 #define NTHREADS 32
-
+#define FAIL 1
+#define SUCCESS 0
 
 #include <types.h>
 #include <lib.h>
