@@ -287,11 +287,19 @@ thread_destroy(struct thread *thread)
 	kfree(thread->t_name);
 
 	for(int i = 0; i < OPEN_MAX; i += 1){
-		if(thread->t_ftable[i]->ref_count == 1){
-			kfree(thread->t_ftable[i]);
+		
+		if(thread->t_ftable[i] != NULL){
+			// Found a descriptor that needs to be updated
+			if(thread->t_ftable[i]->ref_count == 1){
+				// Destroy if I am the only one referring to it
+				kfree(thread->t_ftable[i]);
+			}
+			else{
+				// Update the reference count 
+				thread->t_ftable[i]->ref_count--;
+			}
 		}
 	}
-	kfree(thread->t_ftable)
 
 	kfree(thread);
 }

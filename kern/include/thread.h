@@ -44,6 +44,7 @@ struct cpu;
 
 /* get machine-dependent defs */
 #include <machine/thread.h>
+#include <kern/filehandle.h>
 
 
 /* Size of kernel stacks; must be power of 2 */
