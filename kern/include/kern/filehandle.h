@@ -16,7 +16,7 @@ struct fhandle
     struct  lock *lk;    // lock for synchronization
     off_t offset;        //offset for the file
     int permission_flags;  // permissions defined in fcntl.h
-    int *ref_count;       //ref count for parent child processes
+    int ref_count;       //ref count for parent child processes
 };
 
 
