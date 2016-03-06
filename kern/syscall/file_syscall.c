@@ -14,5 +14,9 @@ Header file in file_syscall.h
 
 int sys_open(userptr_t filename,int flag,int *fd){
 
-    
+    (void) filename;
+    (void) flag;
+    (void) fd;
+
+    return 0;
 }

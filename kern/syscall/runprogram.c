@@ -45,6 +45,9 @@
 #include <syscall.h>
 #include <test.h>
 
+
+void
+init_console(struct fhandle *fh, struct vnode *vn);
 /*
  * Load program "progname" and start running it in usermode.
  * Does not return except on error.
@@ -111,5 +114,6 @@ runprogram(char *progname)
 
 void
 init_console(struct fhandle *fh, struct vnode *vn){ // Add remaining flags
-
+	(void) fh;
+	(void) vn;
 }
