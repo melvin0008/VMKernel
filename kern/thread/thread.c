@@ -287,19 +287,11 @@ thread_destroy(struct thread *thread)
 	kfree(thread->t_name);
 
 	for(int i = 0; i < OPEN_MAX; i += 1){
-		
-		if(thread->t_ftable[i] != NULL){
-			// Found a descriptor that needs to be updated
-			if(thread->t_ftable[i]->ref_count == 1){
-				// Destroy if I am the only one referring to it
-				kfree(thread->t_ftable[i]);
-			}
-			else{
-				// Update the reference count 
-				thread->t_ftable[i]->ref_count--;
-			}
+		if(thread->t_ftable[i]!=NULL && thread->t_ftable[i]->ref_count == 1){
+			kfree(thread->t_ftable[i]);
 		}
 	}
+	kfree(thread->t_ftable);
 
 	kfree(thread);
 }
@@ -538,6 +530,7 @@ thread_fork(const char *name,
 	 */
 
 	/* Thread subsystem fields */
+
 	newthread->t_cpu = curthread->t_cpu;
 
 	/* Attach the new thread to its process */
