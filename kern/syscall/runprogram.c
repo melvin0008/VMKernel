@@ -44,10 +44,12 @@
 #include <vfs.h>
 #include <syscall.h>
 #include <test.h>
+#include <kern/unistd.h>
+#include <kern/filehandle.h>
 
 
-void
-init_console(struct fhandle *fh, struct vnode *vn);
+int
+init_console(int,int);
 /*
  * Load program "progname" and start running it in usermode.
  * Does not return except on error.
@@ -60,7 +62,7 @@ runprogram(char *progname)
 	struct addrspace *as;
 	struct vnode *v;
 	vaddr_t entrypoint, stackptr;
-	int result;
+	int result; 
 
 	/* Open the file. */
 	result = vfs_open(progname, O_RDONLY, 0, &v);
@@ -99,9 +101,19 @@ runprogram(char *progname)
 		/* p_addrspace will go away when curproc is destroyed */
 		return result;
 	}
-
-
-
+	result = init_console(O_RDONLY,STDIN_FILENO);
+	if(result){
+		return result;
+	}
+	result = init_console(O_WRONLY,STDOUT_FILENO);
+	if(result){
+		return result;
+	}
+	result = init_console(O_WRONLY,STDERR_FILENO);
+	if(result){
+		return result;
+	}
+	
 	/* Warp to user mode. */
 	enter_new_process(0 /*argc*/, NULL /*userspace addr of argv*/,
 			  NULL /*userspace addr of environment*/,
@@ -112,8 +124,32 @@ runprogram(char *progname)
 	return EINVAL;
 }
 
-void
-init_console(struct fhandle *fh, struct vnode *vn){ // Add remaining flags
-	(void) fh;
-	(void) vn;
+/* Reference : http://jhshi.me/2012/03/14/os161-file-operation-overview/index.html*/
+int
+init_console(int permission, int console_type){ 
+	struct fhandle *fh;
+	struct vnode *vn;
+	const char *console = "con:";
+	int result;
+	/* Open the console. */
+	result = vfs_open((char *)console,permission, 0664, &vn);
+	if (result) {
+		return result;
+	}
+	fh = kmalloc(sizeof(struct fhandle)); 
+	if (fh == NULL) {
+		return ENOMEM;
+	}
+	fh->name = kstrdup(console);
+	if (fh->name == NULL) {
+		kfree(fh);
+		return ENOMEM;
+	}
+	fh->vn=vn;
+	fh->lk=lock_create(console);
+	fh->offset=0;
+	fh->permission_flags=permission;
+	fh->ref_count=1;
+	curthread->t_ftable[console_type]=fh;
+	return 0;
 }

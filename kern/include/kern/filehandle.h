@@ -11,7 +11,7 @@ File Handle Definition
 
 struct fhandle
 {
-    char *fhandle_name;   //name for the file handle
+    char *name;   //name for the file handle
     struct vnode *vn;     // vnode file object
     struct  lock *lk;    // lock for synchronization
     off_t offset;        //offset for the file
