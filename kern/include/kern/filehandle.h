@@ -20,7 +20,7 @@ struct fhandle
 };
 
 
-struct fhandle *fhandle_create(const char *name); 
+struct fhandle *fhandle_create(const char *name, struct vnode *vn, off_t offset, int permission_flags); 
 void fhandle_destroy(struct fhandle *);
 
 #endif /* _FILE_HANDLE_H */
