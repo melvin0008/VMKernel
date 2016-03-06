@@ -97,6 +97,8 @@ runprogram(char *progname)
 		return result;
 	}
 
+
+
 	/* Warp to user mode. */
 	enter_new_process(0 /*argc*/, NULL /*userspace addr of argv*/,
 			  NULL /*userspace addr of environment*/,
@@ -108,6 +110,6 @@ runprogram(char *progname)
 }
 
 void
-init_console(struct fhandle *fh, ...){ // Add remaining flags
+init_console(struct fhandle *fh, struct vnode *vn){ // Add remaining flags
 
 }
