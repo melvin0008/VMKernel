@@ -275,20 +275,21 @@ thread_destroy(struct thread *thread)
 	if (thread->t_stack != NULL) {
 		kfree(thread->t_stack);
 	}
+	
+	for(int i = 0; i < OPEN_MAX; i += 1){
+		if(thread->t_ftable[i]!=NULL && thread->t_ftable[i]->ref_count == 1){
+			kfree(thread->t_ftable[i]);
+		}
+	}
 	threadlistnode_cleanup(&thread->t_listnode);
 	thread_machdep_cleanup(&thread->t_machdep);
 
 	/* sheer paranoia */
 	thread->t_wchan_name = "DESTROYED";
 
-	kfree(thread->t_name);
+	// kfree(thread->t_name);
 
-	for(int i = 0; i < OPEN_MAX; i += 1){
-		if(thread->t_ftable[i]!=NULL && thread->t_ftable[i]->ref_count == 1){
-			kfree(thread->t_ftable[i]);
-		}
-	}
-	kfree(thread->t_ftable);
+	// kfree(thread->t_ftable);
 
 	kfree(thread);
 }
