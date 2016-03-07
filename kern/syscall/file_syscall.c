@@ -97,10 +97,10 @@ sys_close(int fd)
     * Function sys_read
     * Read reads up to buflen bytes from the file specified by fd.
     *
-    */
+*/
 
 int
-read(int fd, void *buf, size_t buflen, ssize_t *retval){
+sys_read(int fd, void *buf, size_t buflen, ssize_t *retval){
         // Sanity check
     if(!is_valid_file_descriptor(fd) || is_fh_null(fd)){
         return EBADF;
