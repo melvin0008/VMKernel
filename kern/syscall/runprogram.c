@@ -132,8 +132,10 @@ init_console(int permission, int console_type){
 	const char *console = "con:";
 	int result;
 
+	char console2[5];
+	strcpy(console2,"con:");
 	/* Open the console. */
-	result = vfs_open((char *)console,permission, 0664, &vn);
+	result = vfs_open(console2,permission, 0664, &vn);
 	if (result) {
 		return result;
 	}
