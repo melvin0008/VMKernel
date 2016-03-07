@@ -22,7 +22,6 @@ Reference:
 http://jhshi.me/2012/03/28/os161-arguments-passing-in-system-call/index.html
 http://jhshi.me/2012/03/14/os161-file-system-calls/index.html
 */
-bool isvalidFileHandle(int fd);
 
 int sys_open(userptr_t filename,int flag,int *fd){
     
@@ -89,8 +88,8 @@ int sys_close(int fd){
     return 0;
 }
 
-ssize_t
-read(int fd, void *buf, size_t buflen){
+int
+read(int fd, void *buf, size_t buflen, ssize_t *retval){
 
     // Sanity check
     if(!is_valid_file_descriptor(fd) || is_fh_null(fd)){
@@ -124,5 +123,6 @@ read(int fd, void *buf, size_t buflen){
         lock_release(fh->lk);
         return EBADF;
     }
-    return byte_read_count;
+    *retval=byte_read_count;
+    return 0;
 }
