@@ -1,6 +1,6 @@
 /*
-File Syscall Implementations
-Header file in file_syscall.h
+* File Syscall Implementations
+* Header file in file_syscall.h
 */
 
 #include <types.h>
@@ -18,9 +18,9 @@ Header file in file_syscall.h
 #include <proc.h>
 
 /*
-Reference:
-http://jhshi.me/2012/03/28/os161-arguments-passing-in-system-call/index.html
-http://jhshi.me/2012/03/14/os161-file-system-calls/index.html
+* Reference:
+* http://jhshi.me/2012/03/28/os161-arguments-passing-in-system-call/index.html
+* http://jhshi.me/2012/03/14/os161-file-system-calls/index.html
 */
 
 int
