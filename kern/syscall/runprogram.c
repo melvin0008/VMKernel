@@ -144,6 +144,6 @@ init_console(int permission, int console_type){
 	if(fh == NULL){	
 		return ENOMEM;
 	}
-	curthread->t_ftable[console_type]=fh;
+	set_current_fd(console_type,fh);
 	return 0;
 }
