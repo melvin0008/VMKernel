@@ -66,7 +66,11 @@ fakethread_create(const char *name)
 	}
 	/* ignore most of the fields, zero everything for tidiness */
 	bzero(t, sizeof(*t));
-	strcpy(t->t_name, name);
+	t->t_name = kstrdup(name);
+ 	if (t->t_name == NULL) {
+ 		panic("threadlisttest: Out of memory\n");
+ 	}
+	// strcpy(t->t_name, name);
 	t->t_stack = FAKE_MAGIC;
 	threadlistnode_init(&t->t_listnode, t);
 	return t;
@@ -81,6 +85,7 @@ fakethread_destroy(struct thread *t)
 {
 	KASSERT(t->t_stack == FAKE_MAGIC);
 	threadlistnode_cleanup(&t->t_listnode);
+	kfree(t->t_name);
 	kfree(t);
 }
 

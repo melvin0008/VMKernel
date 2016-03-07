@@ -80,8 +80,8 @@ struct thread {
 	 * behavior at the cost of a small amount of memory overhead and the
 	 * inability to give threads huge names.
 	 */
-
-	char t_name[MAX_NAME_LENGTH];
+	char *t_name; 
+	// char t_name[MAX_NAME_LENGTH];
 	const char *t_wchan_name;	/* Name of wait channel, if sleeping */
 	threadstate_t t_state;		/* State this thread is in */
 

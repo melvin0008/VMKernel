@@ -128,7 +128,12 @@ thread_create(const char *name)
 		return NULL;
 	}
 
-	strcpy(thread->t_name, name);
+	thread->t_name = kstrdup(name);
+ 	if (thread->t_name == NULL) {
+		kfree(thread);
+ 		return NULL;
+ 	}
+	// strcpy(thread->t_name, name);
 	thread->t_wchan_name = "NEW";
 	thread->t_state = S_READY;
 
