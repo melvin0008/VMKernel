@@ -44,14 +44,16 @@ void fhandle_destroy(struct fhandle *fh){
     // fh->ref_count = NULL;
 };
 
-struct fhandle *get_current_fd(int fd){
+struct fhandle *get_filehandle(int fd){
     return curthread->t_ftable[fd];
 }
 
 void set_current_fd(int fd, struct fhandle *fh){
     curthread->t_ftable[fd]=fh;
 }
-
+bool is_fh_null(int fd){
+    return curthread->t_ftable[fd]==NULL;
+}
 bool is_valid_file_descriptor(int fd){
     return (fd<0 || fd>=OPEN_MAX);
 }
