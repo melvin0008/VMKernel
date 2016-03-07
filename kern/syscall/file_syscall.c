@@ -21,6 +21,8 @@ Reference:
 http://jhshi.me/2012/03/28/os161-arguments-passing-in-system-call/index.html
 http://jhshi.me/2012/03/14/os161-file-system-calls/index.html
 */
+bool isvalidFileHandle(int fd);
+
 int sys_open(userptr_t filename,int flag,int *fd){
     
     char kernel_buffer[NAME_MAX]; 
@@ -49,11 +51,12 @@ int sys_open(userptr_t filename,int flag,int *fd){
     }
     // Check for the first available slot
     for( i = 0; i<OPEN_MAX; i++){
-        if(curthread->t_ftable[i]==NULL){
+        if(get_current_fd(i)==NULL){
             break;
         }
     }
     if(i == OPEN_MAX){
+    if(!is_valid_file_descriptor(i)){
         return EMFILE;
     }
     fh = fhandle_create((const char*)filename,vn,offset,flag);
@@ -62,12 +65,27 @@ int sys_open(userptr_t filename,int flag,int *fd){
     }
     curthread->t_ftable[i]=fh;
     *fd = i;
+    set_current_fd(i,fh);;
+    *fd=i;
     return 0;
 }
 
+int sys_close(int fd){
+    if(!is_valid_file_descriptor(fd)){
+        return EBADF;
+    }
+    struct fhandle *fh = get_current_fd(fd);
+    lock_acquire(fh->lk);
+    set_current_fd(fd,NULL);
+    if(fh->ref_count==1){
+        vfs_close(fh->vn);
+        lock_release(fh->lk);
+        fhandle_destroy(fh);
+    }
+    else{
+        fh->ref_count--;
+        lock_release(fh->lk);
+    }
+    return 0;
+}
 
-
-
-// void sys_close(userptr_t filename){
-    
-// }

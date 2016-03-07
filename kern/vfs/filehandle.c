@@ -5,6 +5,7 @@ Implementation for interface filehandle.h
 #include <kern/filehandle.h>
 #include <types.h>
 #include <lib.h>
+#include <current.h>
 
 struct fhandle *
 fhandle_create(const char *name, struct vnode *vn, off_t offset, int permission_flags){
@@ -42,3 +43,15 @@ void fhandle_destroy(struct fhandle *fh){
     // fh->permission_flags = NULL;
     // fh->ref_count = NULL;
 };
+
+struct fhandle *get_current_fd(int fd){
+    return curthread->t_ftable[fd];
+}
+
+void set_current_fd(int fd, struct fhandle *fh){
+    curthread->t_ftable[fd]=fh;
+}
+
+bool is_valid_file_descriptor(int fd){
+    return (fd<0 || fd>=OPEN_MAX);
+}
