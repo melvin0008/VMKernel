@@ -23,7 +23,9 @@ http://jhshi.me/2012/03/28/os161-arguments-passing-in-system-call/index.html
 http://jhshi.me/2012/03/14/os161-file-system-calls/index.html
 */
 
-int sys_open(userptr_t filename,int flag,int *fd){
+int
+sys_open(userptr_t filename,int flag,int *fd)
+{
     
     char kernel_buffer[NAME_MAX]; 
     int err,result;
@@ -69,7 +71,9 @@ int sys_open(userptr_t filename,int flag,int *fd){
     return 0;
 }
 
-int sys_close(int fd){
+int 
+sys_close(int fd)
+{
     if(!is_valid_file_descriptor(fd) || is_fh_null(fd)){
         return EBADF;
     }
@@ -87,9 +91,21 @@ int sys_close(int fd){
     }
     return 0;
 }
+<<<<<<< HEAD
 
 int
 read(int fd, void *buf, size_t buflen, ssize_t *retval){
+=======
+/*
+*
+* Function sys_read
+* Read reads up to buflen bytes from the file specified by fd.
+*
+*/
+ssize_t
+sys_read(int fd, void *buf, size_t buflen)
+{
+>>>>>>> 1e0be6b5a34f98cf79b877a501f27ec7cd3efeff
 
     // Sanity check
     if(!is_valid_file_descriptor(fd) || is_fh_null(fd)){
