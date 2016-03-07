@@ -48,7 +48,7 @@ int sys_open(userptr_t filename,int flag,int *fd){
         offset=stat_offset.st_size;
     }
     for( i = 0; i<OPEN_MAX; i++){
-        if(get_current_fd(i)==NULL){
+        if(is_fh_null(i)){
             break;
         }
     }
@@ -65,10 +65,10 @@ int sys_open(userptr_t filename,int flag,int *fd){
 }
 
 int sys_close(int fd){
-    if(!is_valid_file_descriptor(fd)){
+    if(!is_valid_file_descriptor(fd) || is_fh_null(fd)){
         return EBADF;
     }
-    struct fhandle *fh = get_current_fd(fd);
+    struct fhandle *fh = get_filehandle(fd);
     lock_acquire(fh->lk);
     set_current_fd(fd,NULL);
     if(fh->ref_count==1){

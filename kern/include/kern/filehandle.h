@@ -21,8 +21,9 @@ struct fhandle
 
 
 struct fhandle *fhandle_create(const char *name, struct vnode *vn, off_t offset, int permission_flags); 
-struct fhandle *get_current_fd(int fd);
+struct fhandle *get_filehandle(int fd);
 void set_current_fd(int fd, struct fhandle *fh);
+bool is_fh_null(int fd);
 bool is_valid_file_descriptor(int fd);
 void fhandle_destroy(struct fhandle *);
 
