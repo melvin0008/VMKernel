@@ -20,7 +20,7 @@ fhandle_create(const char *name, struct vnode *vn, off_t offset, int permission_
         kfree(fh);
         return NULL;
     }
-    // We expct vnode to be passed 
+    // We expect vnode to be passed 
     // As vnode creation requires knowledge of mode
     // And also the error handling is different
     fh->vn = vn;
@@ -33,6 +33,7 @@ fhandle_create(const char *name, struct vnode *vn, off_t offset, int permission_
 
 void fhandle_destroy(struct fhandle *fh){
     kfree(fh->name);
+    fh->ref_count = 0;
     vnode_cleanup(fh->vn);
     lock_destroy(fh->lk);
     kfree(fh);

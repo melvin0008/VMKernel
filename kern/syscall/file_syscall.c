@@ -61,3 +61,10 @@ int sys_open(userptr_t filename,int flag,int *fd){
     *fd=i;
     return 0;
 }
+
+
+
+
+// void sys_close(userptr_t filename){
+    
+// }
