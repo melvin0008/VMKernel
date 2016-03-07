@@ -5,6 +5,7 @@
 
 int sys_open(userptr_t filename,int flag,int *fd); //ignored mode
 int sys_close(int fd); 
+ssize_t read(int fd, void *buf, size_t buflen);
 
 
 #endif /* _FILE_SYSCALL_H */

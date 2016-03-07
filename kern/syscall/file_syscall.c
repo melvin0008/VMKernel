@@ -15,6 +15,7 @@ Header file in file_syscall.h
 #include <stat.h>
 #include <limits.h>
 #include <current.h>
+#include <proc.h>
 
 /*
 Reference:
@@ -55,7 +56,6 @@ int sys_open(userptr_t filename,int flag,int *fd){
             break;
         }
     }
-    if(i == OPEN_MAX){
     if(!is_valid_file_descriptor(i)){
         return EMFILE;
     }
@@ -89,3 +89,40 @@ int sys_close(int fd){
     return 0;
 }
 
+ssize_t
+read(int fd, void *buf, size_t buflen){
+
+    // Sanity check
+    if(!is_valid_file_descriptor(fd) || is_fh_null(fd)){
+        return EBADF;
+    }
+
+    struct fhandle *fh = get_filehandle(fd);
+    struct uio user_io;
+    struct iovec io_vec;
+    int result;
+    ssize_t byte_read_count = -1;
+
+    lock_acquire(fh->lk);
+
+    if(fh->permission_flags & O_RDONLY ||
+       fh->permission_flags & O_RDWR)
+    {
+        uio_kinit(&io_vec, &user_io, buf, buflen, fh->offset,UIO_READ);
+        user_io.uio_segflg = UIO_USERSPACE;
+        user_io.uio_space = curthread->t_proc->p_addrspace;
+        result = VOP_READ(fh->vn, &user_io);
+        if(result){
+            lock_release(fh->lk);
+            return result;
+        }
+        byte_read_count = buflen - user_io.uio_resid;
+        fh->offset += byte_read_count;
+        lock_release(fh->lk);
+    }
+    else{
+        lock_release(fh->lk);
+        return EBADF;
+    }
+    return byte_read_count;
+}
