@@ -91,23 +91,17 @@ sys_close(int fd)
     }
     return 0;
 }
-<<<<<<< HEAD
+
+/*
+    *
+    * Function sys_read
+    * Read reads up to buflen bytes from the file specified by fd.
+    *
+    */
 
 int
 read(int fd, void *buf, size_t buflen, ssize_t *retval){
-=======
-/*
-*
-* Function sys_read
-* Read reads up to buflen bytes from the file specified by fd.
-*
-*/
-ssize_t
-sys_read(int fd, void *buf, size_t buflen)
-{
->>>>>>> 1e0be6b5a34f98cf79b877a501f27ec7cd3efeff
-
-    // Sanity check
+        // Sanity check
     if(!is_valid_file_descriptor(fd) || is_fh_null(fd)){
         return EBADF;
     }
