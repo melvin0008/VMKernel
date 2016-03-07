@@ -35,6 +35,7 @@ void fhandle_destroy(struct fhandle *fh){
     kfree(fh->name);
     vnode_cleanup(fh->vn);
     lock_destroy(fh->lk);
+    kfree(fh);
     // TODO MEMORY MANAGEMENT
     // fh->offset = NULL;
     // fh->permission_flags = NULL;

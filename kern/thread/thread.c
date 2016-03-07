@@ -148,7 +148,7 @@ thread_create(const char *name)
 	/* If you add to struct thread, be sure to initialize here */
 
 	// Initialize all file table entries ti NULL
-	for(int i = 0; i < OPEN_MAX; i += 1){
+	for(int i = 0; i < OPEN_MAX; i++){
 		thread->t_ftable[i] = NULL;
 	}
 	return thread;
