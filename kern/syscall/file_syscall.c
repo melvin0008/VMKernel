@@ -93,14 +93,13 @@ sys_close(int fd)
 }
 
 /*
-    *
-    * Function sys_read
-    * Read reads up to buflen bytes from the file specified by fd.
-    *
-    */
-
+*
+* Function sys_read
+* Reads up to buflen bytes from the file specified by fd.
+*
+*/
 int
-read(int fd, void *buf, size_t buflen, ssize_t *retval){
+sys_read(int fd, void *buf, size_t buflen, ssize_t *retval){
         // Sanity check
     if(!is_valid_file_descriptor(fd) || is_fh_null(fd)){
         return EBADF;
@@ -134,5 +133,49 @@ read(int fd, void *buf, size_t buflen, ssize_t *retval){
         return EBADF;
     }
     *retval=byte_read_count;
+    return 0;
+}
+
+/*
+*
+* Function sys_write
+* Writes up to buflen bytes from the file specified by fd.
+*
+*/
+int
+sys_write(int fd, void *buf, size_t buflen, ssize_t *retval){
+        // Sanity check
+    if(!is_valid_file_descriptor(fd) || is_fh_null(fd)){
+        return EBADF;
+    }
+
+    struct fhandle *fh = get_filehandle(fd);
+    struct uio user_io;
+    struct iovec io_vec;
+    int result;
+    ssize_t byte_write_count = -1;
+
+    lock_acquire(fh->lk);
+
+    if(fh->permission_flags & O_WRONLY ||
+       fh->permission_flags & O_RDWR)
+    {
+        uio_kinit(&io_vec, &user_io, buf, buflen, fh->offset,UIO_WRITE);
+        user_io.uio_segflg = UIO_USERSPACE;
+        user_io.uio_space = curthread->t_proc->p_addrspace;
+        result = VOP_WRITE(fh->vn, &user_io);
+        if(result){
+            lock_release(fh->lk);
+            return result;
+        }
+        byte_write_count = buflen - user_io.uio_resid;
+        fh->offset += byte_write_count;
+        lock_release(fh->lk);
+    }
+    else{
+        lock_release(fh->lk);
+        return EBADF;
+    }
+    *retval=byte_write_count;
     return 0;
 }
