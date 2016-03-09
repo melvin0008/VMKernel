@@ -183,8 +183,15 @@ sys_write(int fd, void *buf, size_t buflen, ssize_t *retval){
     return 0;
 }
 
+
+/*
+*
+* Function sys_write
+* Writes up to buflen bytes from the file specified by fd.
+*
+*/
 int
-dup2(int oldfd, int newfd){
+sys_dup2(int oldfd, int newfd){
     if(oldfd==newfd){
         return 0;
     }

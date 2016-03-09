@@ -31,7 +31,7 @@ int sys_read(int fd, void *buf, size_t buflen, ssize_t *retval);
 */
 int sys_write(int fd, void *buf, size_t buflen, ssize_t *retval);
 
-int dup2(int oldfd, int newfd);
+int sys_dup2(int oldfd, int newfd);
 
 
 #endif /* _FILE_SYSCALL_H */
