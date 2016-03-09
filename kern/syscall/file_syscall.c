@@ -186,8 +186,8 @@ sys_write(int fd, void *buf, size_t buflen, ssize_t *retval){
 
 /*
 *
-* Function sys_write
-* Writes up to buflen bytes from the file specified by fd.
+* Function sys_dups
+* Duplicates file handles
 *
 */
 int
@@ -212,3 +212,30 @@ sys_dup2(int oldfd, int newfd){
     return 0;
 
 }
+
+/*
+*
+* Function sys_chdir
+* Change directory to the new pathname 
+*/
+
+int
+sys_chdir(const char *pathname){
+
+    char kernel_buffer[NAME_MAX]; 
+    int err,result;
+    size_t actual;
+
+    err = copyinstr((const_userptr_t) pathname, kernel_buffer, NAME_MAX, &actual);
+    if (err != 0){ 
+        return err; 
+    } 
+    result = vfs_chdir(kernel_buffer);
+    if (result) {
+        return result;
+    }
+    return 0;
+}
+
+
+
