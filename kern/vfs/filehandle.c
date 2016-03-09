@@ -54,6 +54,6 @@ void set_current_fd(int fd, struct fhandle *fh){
 bool is_fh_null(int fd){
     return curthread->t_ftable[fd]==NULL;
 }
-bool is_valid_file_descriptor(int fd){
+bool is_invalid_file_descriptor(int fd){
     return (fd<0 || fd>=OPEN_MAX);
 }

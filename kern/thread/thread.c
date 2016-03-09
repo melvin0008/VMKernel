@@ -526,6 +526,14 @@ thread_fork(const char *name,
 	/*
 	 * Now we clone various fields from the parent thread.
 	 */
+	for(int i = 0; i < OPEN_MAX; i++){
+		struct fhandle *fh= get_filehandle(i);
+		if(fh==NULL){
+			break;
+		}
+		fh->ref_count++;
+		newthread->t_ftable[i]=fh;
+	}
 
 	/* Thread subsystem fields */
 

@@ -101,6 +101,7 @@ runprogram(char *progname)
 		/* p_addrspace will go away when curproc is destroyed */
 		return result;
 	}
+	
 	result = init_console(O_RDONLY,STDIN_FILENO);
 	if(result){
 		return result;

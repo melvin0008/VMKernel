@@ -57,24 +57,24 @@ sys_open(userptr_t filename,int flag,int *fd)
             break;
         }
     }
-    if(!is_valid_file_descriptor(i)){
+    if(is_invalid_file_descriptor(i)){
         return EMFILE;
     }
     fh = fhandle_create((const char*)filename,vn,offset,flag);
     if(fh == NULL){
         return ENOMEM;
     }
-    curthread->t_ftable[i]=fh;
-    *fd = i;
+    lock_acquire(fh->lk);
     set_current_fd(i,fh);;
     *fd=i;
+    lock_release(fh->lk);
     return 0;
 }
 
 int 
 sys_close(int fd)
 {
-    if(!is_valid_file_descriptor(fd) || is_fh_null(fd)){
+    if(is_invalid_file_descriptor(fd) || is_fh_null(fd)){
         return EBADF;
     }
     struct fhandle *fh = get_filehandle(fd);
@@ -102,7 +102,7 @@ sys_close(int fd)
 int
 sys_read(int fd, void *buf, size_t buflen, ssize_t *retval){
         // Sanity check
-    if(!is_valid_file_descriptor(fd) || is_fh_null(fd)){
+    if(is_invalid_file_descriptor(fd) || is_fh_null(fd)){
         return EBADF;
     }
 
@@ -127,13 +127,14 @@ sys_read(int fd, void *buf, size_t buflen, ssize_t *retval){
         }
         byte_read_count = buflen - user_io.uio_resid;
         fh->offset += byte_read_count;
+        *retval=byte_read_count;
         lock_release(fh->lk);
     }
     else{
+        *retval=byte_read_count;
         lock_release(fh->lk);
         return EBADF;
     }
-    *retval=byte_read_count;
     return 0;
 }
 
@@ -146,7 +147,7 @@ sys_read(int fd, void *buf, size_t buflen, ssize_t *retval){
 int
 sys_write(int fd, void *buf, size_t buflen, ssize_t *retval){
         // Sanity check
-    if(!is_valid_file_descriptor(fd) || is_fh_null(fd)){
+    if(is_invalid_file_descriptor(fd) || is_fh_null(fd)){
         return EBADF;
     }
 
@@ -154,9 +155,8 @@ sys_write(int fd, void *buf, size_t buflen, ssize_t *retval){
     struct uio user_io;
     struct iovec io_vec;
     int result;
-    ssize_t byte_write_count = -1;
-
     lock_acquire(fh->lk);
+    ssize_t byte_write_count = -1;
 
     if(fh->permission_flags & O_WRONLY ||
        fh->permission_flags & O_RDWR)
@@ -171,12 +171,37 @@ sys_write(int fd, void *buf, size_t buflen, ssize_t *retval){
         }
         byte_write_count = buflen - user_io.uio_resid;
         fh->offset += byte_write_count;
+        *retval=byte_write_count;
         lock_release(fh->lk);
     }
     else{
+        *retval=byte_write_count;
         lock_release(fh->lk);
         return EBADF;
     }
-    *retval=byte_write_count;
+    
     return 0;
+}
+
+int
+dup2(int oldfd, int newfd){
+    if(oldfd==newfd){
+        return 0;
+    }
+    if(is_invalid_file_descriptor(oldfd) || is_invalid_file_descriptor(newfd) || is_fh_null(oldfd)){
+        return EBADF;
+    }
+    struct fhandle *old_fh= get_filehandle(oldfd);
+    lock_acquire(old_fh->lk);
+    if(!is_fh_null(newfd)){
+        int err = sys_close(newfd);
+        if(err){
+            return err;
+        }
+    }
+    curthread->t_ftable[oldfd]++;
+    set_current_fd(newfd,old_fh);
+    lock_release(old_fh->lk);
+    return 0;
+
 }

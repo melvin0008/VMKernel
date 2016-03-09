@@ -24,7 +24,7 @@ struct fhandle *fhandle_create(const char *name, struct vnode *vn, off_t offset,
 struct fhandle *get_filehandle(int fd);
 void set_current_fd(int fd, struct fhandle *fh);
 bool is_fh_null(int fd);
-bool is_valid_file_descriptor(int fd);
+bool is_invalid_file_descriptor(int fd);
 void fhandle_destroy(struct fhandle *);
 
 #endif /* _FILE_HANDLE_H */

@@ -125,10 +125,10 @@ syscall(struct trapframe *tf)
 		retval = (int32_t) temp_retval;
 		break;
 
-		// case SYS_write:
-		// err = sys_write(tf->tf_a0,(void *)tf->tf_a1,(size_t)tf->tf_a2,&temp_retval);
-		// retval = (int32_t) temp_retval;
-		// break;
+		case SYS_write:
+		err = sys_write(tf->tf_a0,(void *)tf->tf_a1,(size_t)tf->tf_a2,&temp_retval);
+		retval = (int32_t) temp_retval;
+		break;
 
 	    /* Add stuff here */
 
