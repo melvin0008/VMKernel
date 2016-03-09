@@ -35,5 +35,6 @@ int sys_dup2(int oldfd, int newfd);
 
 int sys_chdir(const char *pathname);
 
+int sys__getcwd(char *buf, size_t buflen, size_t *retval);
 
 #endif /* _FILE_SYSCALL_H */

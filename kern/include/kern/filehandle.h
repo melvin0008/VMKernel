@@ -9,6 +9,9 @@ File Handle Definition
 #include <synch.h>
 #include <vnode.h>
 
+/*Didn't know where else to add this*/
+#define INVAL_ADDR 0x40000000
+
 struct fhandle
 {
     char *name;   //name for the file handle

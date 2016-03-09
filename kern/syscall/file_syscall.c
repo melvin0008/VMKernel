@@ -17,6 +17,7 @@
 #include <current.h>
 #include <proc.h>
 
+
 /*
 * Reference:
 * http://jhshi.me/2012/03/28/os161-arguments-passing-in-system-call/index.html
@@ -238,4 +239,29 @@ sys_chdir(const char *pathname){
 }
 
 
+int
+sys__getcwd(char *buf, size_t buflen, size_t *retval){
+    
+    if(buf==NULL || (userptr_t) buf== (userptr_t)INVAL_ADDR){
+        return EFAULT;
+    }
 
+    char kernel_buffer[NAME_MAX]; 
+    int err;
+    size_t actual;
+    err = copyinstr((const_userptr_t) buf, kernel_buffer, NAME_MAX, &actual);
+    if (err != 0){ 
+        return err; 
+    } 
+    struct uio user_io;
+    struct iovec io_vec;
+    uio_kinit(&io_vec, &user_io, kernel_buffer, buflen, 0,UIO_READ);
+    user_io.uio_segflg = UIO_USERSPACE;
+    user_io.uio_space = curthread->t_proc->p_addrspace; 
+    err=vfs_getcwd(&user_io);
+    if(err){
+        return err;
+    }
+    *retval=buflen - user_io.uio_resid;
+    return 0;
+}
