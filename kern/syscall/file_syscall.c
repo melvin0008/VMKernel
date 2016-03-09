@@ -7,7 +7,9 @@
 #include <vnode.h>
 #include <kern/fcntl.h>
 #include <kern/errno.h>
+#include <kern/unistd.h>
 #include <kern/filehandle.h>
+#include <kern/seek.h>
 #include <copyinout.h>
 #include <uio.h>
 #include <vfs.h>
@@ -251,7 +253,7 @@ sys__getcwd(char *buf, size_t buflen, size_t *retval){
     size_t actual;
     err = copyinstr((const_userptr_t) buf, kernel_buffer, NAME_MAX, &actual);
     if (err != 0){ 
-        return err; 
+        return err;
     } 
     struct uio user_io;
     struct iovec io_vec;
@@ -263,5 +265,50 @@ sys__getcwd(char *buf, size_t buflen, size_t *retval){
         return err;
     }
     *retval=buflen - user_io.uio_resid;
+    return 0;
+}
+
+int
+sys_lseek (int fd, off_t pos, int whence,off_t *retval){
+    if(is_invalid_file_descriptor(fd) || is_fh_null(fd)){
+        return EBADF;
+    }
+    if(whence != SEEK_SET || whence != SEEK_CUR || whence != SEEK_END){
+        return EINVAL;
+    }
+    if(fd == STDIN_FILENO && fd == STDOUT_FILENO && fd == STDERR_FILENO ){
+        return ESPIPE;
+    }
+    //Make sure what they mean by resulting seek position
+    // if(pos<0){
+    //     return EINVAL;
+    // }
+    struct fhandle *fh = get_filehandle(fd);
+    int result,err;
+    err=VOP_ISSEEKABLE(fh->vn);
+    if(err){
+        return ESPIPE;
+    }
+    off_t new_offset = 0;
+    struct stat stat_offset;
+    switch(whence){
+        case SEEK_SET:
+            new_offset = pos;
+        break;
+        case SEEK_CUR:
+            new_offset = fh->offset + pos;
+        break;
+        case SEEK_END:
+            result = VOP_STAT(fh->vn,&stat_offset);
+            if (result) {
+               return result;
+            }
+            new_offset = stat_offset.st_size + pos;
+        break;
+    }
+    if(new_offset<0){
+        return EINVAL;
+    }
+    *retval=new_offset;
     return 0;
 }
