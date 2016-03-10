@@ -37,4 +37,6 @@ int sys_chdir(const char *pathname);
 
 int sys__getcwd(char *buf, size_t buflen, size_t *retval);
 
+int sys_lseek (int fd, off_t pos, int whence,off_t *retval);
+
 #endif /* _FILE_SYSCALL_H */
