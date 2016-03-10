@@ -72,7 +72,7 @@ struct proc {
 
 	/* add more material here as needed */
     /*
-    process thread
+    process tothread
     file table
     pid
     parent pid

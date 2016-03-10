@@ -118,8 +118,8 @@ sys_read(int fd, void *buf, size_t buflen, ssize_t *retval){
 
     lock_acquire(fh->lk);
 
-    if((fh->permission_flags & O_RDONLY) == O_RDONLY ||
-       fh->permission_flags & O_RDWR)
+    if(((fh->permission_flags & O_RDONLY) == O_RDONLY ||
+       fh->permission_flags & O_RDWR))
     {
         uio_kinit(&io_vec, &user_io, buf, buflen, fh->offset,UIO_READ);
         user_io.uio_segflg = UIO_USERSPACE;
@@ -196,11 +196,12 @@ sys_write(int fd, void *buf, size_t buflen, ssize_t *retval){
 */
 int
 sys_dup2(int oldfd, int newfd){
-    if(oldfd==newfd){
-        return 0;
-    }
+    
     if(is_invalid_file_descriptor(oldfd) || is_invalid_file_descriptor(newfd) || is_fh_null(oldfd)){
         return EBADF;
+    }
+    if(oldfd==newfd){
+        return 0;
     }
     struct fhandle *old_fh= get_filehandle(oldfd);
     lock_acquire(old_fh->lk);
@@ -210,7 +211,7 @@ sys_dup2(int oldfd, int newfd){
             return err;
         }
     }
-    curthread->t_ftable[oldfd]++;
+    curthread->t_ftable[oldfd]->ref_count++;
     set_current_fd(newfd,old_fh);
     lock_release(old_fh->lk);
     return 0;
@@ -279,7 +280,7 @@ sys_lseek (int fd, off_t pos, int whence,off_t *retval){
     if(whence != SEEK_SET && whence != SEEK_CUR && whence != SEEK_END){
         return EINVAL;
     }
-    if(fd == STDIN_FILENO && fd == STDOUT_FILENO && fd == STDERR_FILENO ){
+    if(fd == STDIN_FILENO || fd == STDOUT_FILENO || fd == STDERR_FILENO ){
         return ESPIPE;
     }
     //Make sure what they mean by resulting seek position
