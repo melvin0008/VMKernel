@@ -71,6 +71,12 @@ struct proc {
 	struct vnode *p_cwd;		/* current working directory */
 
 	/* add more material here as needed */
+    pid_t ppid;
+    pid_t pid;
+    int exit_code;
+    bool is_exited;
+    struct lock* exit_lock;
+    struct thread* ref_proc;  
     /*
     process tothread
     file table
