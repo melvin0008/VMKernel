@@ -84,6 +84,7 @@ sys_close(int fd)
     lock_acquire(fh->lk);
     set_current_fd(fd,NULL);
     if(fh->ref_count==1){
+        fh->ref_count--;
         vfs_close(fh->vn);
         lock_release(fh->lk);
         fhandle_destroy(fh);
@@ -117,7 +118,7 @@ sys_read(int fd, void *buf, size_t buflen, ssize_t *retval){
 
     lock_acquire(fh->lk);
 
-    if(fh->permission_flags & O_RDONLY ||
+    if((fh->permission_flags & O_RDONLY) == O_RDONLY ||
        fh->permission_flags & O_RDWR)
     {
         uio_kinit(&io_vec, &user_io, buf, buflen, fh->offset,UIO_READ);
@@ -267,13 +268,15 @@ sys__getcwd(char *buf, size_t buflen, size_t *retval){
     *retval=buflen - user_io.uio_resid;
     return 0;
 }
+
 /*TODO:Make it Atomid*/
+
 int
 sys_lseek (int fd, off_t pos, int whence,off_t *retval){
     if(is_invalid_file_descriptor(fd) || is_fh_null(fd)){
         return EBADF;
     }
-    if(whence != SEEK_SET || whence != SEEK_CUR || whence != SEEK_END){
+    if(whence != SEEK_SET && whence != SEEK_CUR && whence != SEEK_END){
         return EINVAL;
     }
     if(fd == STDIN_FILENO && fd == STDOUT_FILENO && fd == STDERR_FILENO ){
@@ -284,13 +287,13 @@ sys_lseek (int fd, off_t pos, int whence,off_t *retval){
     //     return EINVAL;
     // }
     struct fhandle *fh = get_filehandle(fd);
-    int result,err;
-    err=VOP_ISSEEKABLE(fh->vn);
-    if(err){
-        return ESPIPE;
-    }
+    int result;
+    lock_acquire(fh->lk);
     off_t new_offset = 0;
     struct stat stat_offset;
+    if(!VOP_ISSEEKABLE(fh->vn)){
+        return ESPIPE;
+    }
     switch(whence){
         case SEEK_SET:
             new_offset = pos;
@@ -301,14 +304,18 @@ sys_lseek (int fd, off_t pos, int whence,off_t *retval){
         case SEEK_END:
             result = VOP_STAT(fh->vn,&stat_offset);
             if (result) {
+                lock_release(fh->lk);
                return result;
             }
             new_offset = stat_offset.st_size + pos;
         break;
-    }
+    }    
     if(new_offset<0){
+        lock_release(fh->lk);
         return EINVAL;
     }
+    fh->offset=new_offset;
     *retval=new_offset;
+    lock_release(fh->lk);
     return 0;
 }

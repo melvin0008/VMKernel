@@ -35,7 +35,7 @@ fhandle_create(const char *name, struct vnode *vn, off_t offset, int permission_
 void fhandle_destroy(struct fhandle *fh){
     kfree(fh->name);
     fh->ref_count = 0;
-    vnode_cleanup(fh->vn);
+    // vnode_cleanup(fh->vn);
     lock_destroy(fh->lk);
     kfree(fh);
     // TODO MEMORY MANAGEMENT

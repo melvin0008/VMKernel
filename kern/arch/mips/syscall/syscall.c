@@ -36,6 +36,7 @@
 #include <current.h>
 #include <syscall.h>
 #include <file_syscall.h>
+#include <copyinout.h>
 
 
 /*
@@ -81,8 +82,11 @@ syscall(struct trapframe *tf)
 {
 	int callno;
 	int32_t retval;
-	int err;
+	int err,whence;
 	ssize_t temp_retval;
+	size_t temp_retval2;
+	off_t temp_retval3;
+	off_t sys_pos;
 
 	KASSERT(curthread != NULL);
 	KASSERT(curthread->t_curspl == 0);
@@ -128,6 +132,30 @@ syscall(struct trapframe *tf)
 		case SYS_write:
 		err = sys_write(tf->tf_a0,(void *)tf->tf_a1,(size_t)tf->tf_a2,&temp_retval);
 		retval = (int32_t) temp_retval;
+		break;
+
+		case SYS_dup2:
+		err = sys_dup2(tf->tf_a0,tf->tf_a1); 
+		retval = tf->tf_a1;
+		break;
+
+		case SYS_chdir:
+		err = sys_chdir((const char *)tf->tf_a0); 
+		break;
+
+		case SYS___getcwd:
+		err = sys__getcwd((char *)tf->tf_a0, (size_t) tf->tf_a1,&temp_retval2);
+		retval = (int32_t) temp_retval2;
+		break;
+
+		case SYS_lseek:
+		err=copyin((const_userptr_t) tf->tf_sp+16, (void *) &whence, sizeof(whence));
+		if(err == 0){
+			sys_pos = ((off_t) tf->tf_a2 << 32) | tf->tf_a3; 
+			err = sys_lseek( tf->tf_a0 , sys_pos , whence , &temp_retval3);
+			retval=temp_retval3 >>32;
+			tf->tf_v1 = temp_retval3;
+		}
 		break;
 
 	    /* Add stuff here */
