@@ -53,7 +53,7 @@
  * The process for the kernel; this holds all the kernel-only threads.
  */
 struct proc *kproc;
-struct proc *proc_table;
+struct proc *proc_table[PID_MAX];
 
 /*
  * Create a proc structure.
@@ -174,10 +174,11 @@ proc_destroy(struct proc *proc)
 		}
 		as_destroy(as);
 	}
-
+	int pid = proc->pid;
+	proc_table[pid] = NULL; 
 	KASSERT(proc->p_numthreads == 0);
 	spinlock_cleanup(&proc->p_lock);
-
+	kfree(proc_table[pid])
 	kfree(proc->p_name);
 	kfree(proc);
 }
@@ -234,12 +235,12 @@ proc_create_runprogram(const char *name)
 	}
 
 	int i;
-	for(i=0; i < PID_MAX; i += 1){
+	for(i=2; i < PID_MAX; i += 1){
 		if (proc_table[i] != NULL){
 			break;
 		}
 	}
-	if(i >= PID_MAX){
+	if(i == PID_MAX){
 		panic("Max process count reached");
 	}
 	else{
