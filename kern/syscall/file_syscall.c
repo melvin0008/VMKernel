@@ -118,8 +118,8 @@ sys_read(int fd, void *buf, size_t buflen, ssize_t *retval){
 
     lock_acquire(fh->lk);
 
-    if((fh->permission_flags & O_RDONLY) == O_RDONLY ||
-       fh->permission_flags & O_RDWR)
+    if(((fh->permission_flags & O_RDONLY) == O_RDONLY ||
+       fh->permission_flags & O_RDWR) && !(fh->permission_flags & O_WRONLY))
     {
         uio_kinit(&io_vec, &user_io, buf, buflen, fh->offset,UIO_READ);
         user_io.uio_segflg = UIO_USERSPACE;
@@ -196,11 +196,11 @@ sys_write(int fd, void *buf, size_t buflen, ssize_t *retval){
 */
 int
 sys_dup2(int oldfd, int newfd){
-    if(oldfd==newfd){
-        return 0;
-    }
     if(is_invalid_file_descriptor(oldfd) || is_invalid_file_descriptor(newfd) || is_fh_null(oldfd)){
         return EBADF;
+    }
+    if(oldfd==newfd){
+        return 0;
     }
     struct fhandle *old_fh= get_filehandle(oldfd);
     lock_acquire(old_fh->lk);
