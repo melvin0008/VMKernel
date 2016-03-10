@@ -37,6 +37,7 @@
  */
 
 #include <spinlock.h>
+#include <limits.h>
 
 struct addrspace;
 struct thread;
@@ -60,23 +61,23 @@ struct vnode;
  * without sleeping.
  */
 struct proc {
-	char *p_name;			/* Name of this process */
-	struct spinlock p_lock;		/* Lock for this structure */
-	unsigned p_numthreads;		/* Number of threads in this process */
+    char *p_name;           /* Name of this process */
+    struct spinlock p_lock;     /* Lock for this structure */
+    unsigned p_numthreads;      /* Number of threads in this process */
 
-	/* VM */
-	struct addrspace *p_addrspace;	/* virtual address space */
+    /* VM */
+    struct addrspace *p_addrspace;  /* virtual address space */
 
-	/* VFS */
-	struct vnode *p_cwd;		/* current working directory */
+    /* VFS */
+    struct vnode *p_cwd;        /* current working directory */
 
-	/* add more material here as needed */
+    /* add more material here as needed */
     pid_t ppid;
     pid_t pid;
     int exit_code;
     bool is_exited;
     struct lock* exit_lock;
-    struct thread* ref_proc;  
+    struct thread* ref_thread;  
     /*
     process tothread
     file table
@@ -88,8 +89,10 @@ struct proc {
     */
 };
 
+
 /* This is the process structure for the kernel and for kernel-only threads. */
 extern struct proc *kproc;
+extern struct proc *proc_table[PID_MAX];
 
 /* Call once during system startup to allocate data structures. */
 void proc_bootstrap(void);

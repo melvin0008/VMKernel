@@ -53,6 +53,7 @@
  * The process for the kernel; this holds all the kernel-only threads.
  */
 struct proc *kproc;
+struct proc *proc_table;
 
 /*
  * Create a proc structure.
@@ -78,7 +79,16 @@ proc_create(const char *name)
 
 	/* VM fields */
 	proc->p_addrspace = NULL;
+	proc->is_exited = false;
+	proc->exit_lock = lock_create("proc_exit_lock");
+	if (proc->exit_lock == NULL) {
+		panic("proc_exit_thread: lock_create failed\n");
+	}
 
+ 	proc->ref_thread = curthread;  
+ 	proc->ppid = -1;  
+ 	proc->pid = -1;
+ 	proc->exit_code = -1;
 	/* VFS fields */
 	proc->p_cwd = NULL;
 
@@ -178,6 +188,12 @@ proc_destroy(struct proc *proc)
 void
 proc_bootstrap(void)
 {
+	// Initialize all the entries to Null
+	int i;
+	for(i = 0; i < PID_MAX; i += 1){
+		proc_table[i] = NULL;
+	}
+
 	kproc = proc_create("[kernel]");
 	if (kproc == NULL) {
 		panic("proc_create for kproc failed\n");
@@ -216,6 +232,21 @@ proc_create_runprogram(const char *name)
 		VOP_INCREF(curproc->p_cwd);
 		newproc->p_cwd = curproc->p_cwd;
 	}
+
+	int i;
+	for(i=0; i < PID_MAX; i += 1){
+		if (proc_table[i] != NULL){
+			break;
+		}
+	}
+	if(i >= PID_MAX){
+		panic("Max process count reached");
+	}
+	else{
+		newproc->pid = i;
+		proc_table[i] = newproc;
+	}
+
 	spinlock_release(&curproc->p_lock);
 
 	return newproc;
