@@ -55,6 +55,8 @@
 
 #define MAXMENUARGS  16
 
+struct semaphore *proc_sem;
+
 ////////////////////////////////////////////////////////////
 //
 // Command menu functions
@@ -92,7 +94,7 @@ cmd_progthread(void *ptr, unsigned long nargs)
 	result = runprogram(progname);
 	if (result) {
 		kprintf("Running program %s failed: %s\n", args[0],
-			strerror(result));
+		strerror(result));
 		return;
 	}
 
@@ -124,6 +126,12 @@ common_prog(int nargs, char **args)
 		return ENOMEM;
 	}
 
+	// Temperory stall the process
+	proc_sem = sem_create("proc_sem", 1);
+	if (proc_sem == NULL) {
+		panic("proc_sem: lock_create failed\n");
+	}
+	P(proc_sem);
 	result = thread_fork(args[0] /* thread name */,
 			proc /* new process */,
 			cmd_progthread /* thread function */,
@@ -133,7 +141,8 @@ common_prog(int nargs, char **args)
 		proc_destroy(proc);
 		return result;
 	}
-
+	P(proc_sem);
+	
 	/*
 	 * The new process will be destroyed when the program exits...
 	 * once you write the code for handling that.
