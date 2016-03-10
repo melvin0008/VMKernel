@@ -76,7 +76,7 @@ struct proc {
     pid_t pid;
     int exit_code;
     bool is_exited;
-    struct lock* exit_lock;
+    struct lock* exit_lk;
     struct thread* ref_thread;  
     /*
     process tothread
@@ -99,6 +99,8 @@ void proc_bootstrap(void);
 
 /* Create a fresh process for use by runprogram(). */
 struct proc *proc_create_runprogram(const char *name);
+
+struct proc *get_proc(int pid);
 
 /* Destroy a process. */
 void proc_destroy(struct proc *proc);

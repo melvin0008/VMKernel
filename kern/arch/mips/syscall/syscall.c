@@ -36,6 +36,7 @@
 #include <current.h>
 #include <syscall.h>
 #include <file_syscall.h>
+#include <proc_syscall.h>
 #include <copyinout.h>
 
 
@@ -86,7 +87,9 @@ syscall(struct trapframe *tf)
 	ssize_t temp_retval;
 	size_t temp_retval2;
 	off_t temp_retval3;
+	pid_t temp_retval4;
 	off_t sys_pos;
+
 
 	KASSERT(curthread != NULL);
 	KASSERT(curthread->t_curspl == 0);
@@ -157,6 +160,16 @@ syscall(struct trapframe *tf)
 			tf->tf_v1 = temp_retval3;
 		}
 		break;
+
+		case SYS_getpid:
+		err = sys_getpid(&temp_retval4);
+		retval = (int32_t) temp_retval4;
+	    break;
+
+	    case SYS__exit:
+		sys_exit(tf->tf_a0);
+		err=0;
+	    break;
 
 	    /* Add stuff here */
 

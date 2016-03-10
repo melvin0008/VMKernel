@@ -80,8 +80,8 @@ proc_create(const char *name)
 	/* VM fields */
 	proc->p_addrspace = NULL;
 	proc->is_exited = false;
-	proc->exit_lock = lock_create("proc_exit_lock");
-	if (proc->exit_lock == NULL) {
+	proc->exit_lk = lock_create("proc_exit_lock");
+	if (proc->exit_lk == NULL) {
 		panic("proc_exit_thread: lock_create failed\n");
 	}
 
@@ -178,7 +178,7 @@ proc_destroy(struct proc *proc)
 	proc_table[pid] = NULL; 
 	KASSERT(proc->p_numthreads == 0);
 	spinlock_cleanup(&proc->p_lock);
-	kfree(proc_table[pid])
+	// kfree(proc_table[pid]);
 	kfree(proc->p_name);
 	kfree(proc);
 }
@@ -236,7 +236,7 @@ proc_create_runprogram(const char *name)
 
 	int i;
 	for(i=2; i < PID_MAX; i += 1){
-		if (proc_table[i] != NULL){
+		if (proc_table[i] == NULL){
 			break;
 		}
 	}
@@ -349,4 +349,10 @@ proc_setas(struct addrspace *newas)
 	proc->p_addrspace = newas;
 	spinlock_release(&proc->p_lock);
 	return oldas;
+}
+
+
+
+struct proc *get_proc(int pid){
+	return proc_table[pid];
 }
