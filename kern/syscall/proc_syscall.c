@@ -42,6 +42,9 @@ sys_waitpid(pid_t pid, int *status, int options, pid_t *retval){
     (void) status;
     (void) options;
     (void) retval;
+    // TODO Is the status pointer properly aligned (by 4) ?
+    // TODO Is the status pointer a valid pointer anyway (NULL, point to kernel, ...)?
+    // TODO Is options valid? (More flags than WNOHANG | WUNTRACED )
 
     if(is_proc_null(pid)){
         return ESRCH;
@@ -70,7 +73,6 @@ sys_waitpid(pid_t pid, int *status, int options, pid_t *retval){
     if(error_val){
         return error_val;
     }
-
 
     lock_release(child->exit_lk);
     proc_destroy(child);
