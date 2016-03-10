@@ -131,7 +131,6 @@ common_prog(int nargs, char **args)
 		return ENOMEM;
 	}
 
-	lock_acquire(proc_lock);
 
 	result = thread_fork(args[0] /* thread name */,
 			proc /* new process */,
@@ -139,11 +138,11 @@ common_prog(int nargs, char **args)
 			args /* thread arg */, nargs /* thread arg */);
 	if (result) {
 		kprintf("thread_fork failed: %s\n", strerror(result));
-		lock_release(proc_lock);
 		proc_destroy(proc);
 		return result;
 	}
 
+	lock_acquire(proc_lock);
 	cv_wait(proc_cv, proc_lock);
 	lock_release(proc_lock);
 	
