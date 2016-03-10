@@ -528,7 +528,7 @@ thread_fork(const char *name,
 	 */
 	for(int i = 0; i < OPEN_MAX; i++){
 		struct fhandle *fh= get_filehandle(i);
-		if(fh==NULL){
+		if(fh == NULL){
 			break;
 		}
 		fh->ref_count++;

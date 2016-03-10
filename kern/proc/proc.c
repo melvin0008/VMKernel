@@ -80,9 +80,15 @@ proc_create(const char *name)
 	/* VM fields */
 	proc->p_addrspace = NULL;
 	proc->is_exited = false;
+	
 	proc->exit_lk = lock_create("proc_exit_lock");
 	if (proc->exit_lk == NULL) {
 		panic("proc_exit_thread: lock_create failed\n");
+	}
+
+	proc->exit_cv = cv_create("proc_exit_cv");
+	if (proc->exit_cv == NULL) {
+		panic("proc_exit_thread: cv_create failed\n");
 	}
 
  	proc->ref_thread = curthread;  
@@ -175,12 +181,16 @@ proc_destroy(struct proc *proc)
 		as_destroy(as);
 	}
 	int pid = proc->pid;
-	proc_table[pid] = NULL; 
 	KASSERT(proc->p_numthreads == 0);
+
 	spinlock_cleanup(&proc->p_lock);
-	// kfree(proc_table[pid]);
+	lock_destroy(proc->exit_lk);
+	cv_destroy(proc->exit_cv);
+	
 	kfree(proc->p_name);
 	kfree(proc);
+	kfree(proc_table[pid]);
+	proc_table[pid] = NULL; 
 }
 
 /*
@@ -355,4 +365,16 @@ proc_setas(struct addrspace *newas)
 
 struct proc *get_proc(int pid){
 	return proc_table[pid];
+}
+
+bool is_pid_in_range(pid_t pid){
+	return pid >= PID_MIN && pid < PID_MIN;
+}
+
+bool is_proc_null(pid_t pid){
+	return proc_table[pid] == NULL;
+}
+
+bool is_proc_valid(pid_t pid){
+	return is_pid_in_range(pid) && !is_proc_null(pid);
 }
