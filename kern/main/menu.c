@@ -55,6 +55,9 @@
 
 #define MAXMENUARGS  16
 
+struct lock *proc_lock;
+struct cv *proc_cv;
+
 ////////////////////////////////////////////////////////////
 //
 // Command menu functions
@@ -89,12 +92,16 @@ cmd_progthread(void *ptr, unsigned long nargs)
 
 	strcpy(progname, args[0]);
 
+	lock_acquire(proc_lock);
 	result = runprogram(progname);
 	if (result) {
 		kprintf("Running program %s failed: %s\n", args[0],
-			strerror(result));
+		strerror(result));
+		lock_release(proc_lock);
 		return;
 	}
+	cv_signal(proc_cv, proc_lock);
+	lock_release(proc_lock);
 
 	/* NOTREACHED: runprogram only returns on error. */
 }
@@ -124,16 +131,22 @@ common_prog(int nargs, char **args)
 		return ENOMEM;
 	}
 
+	lock_acquire(proc_lock);
+
 	result = thread_fork(args[0] /* thread name */,
 			proc /* new process */,
 			cmd_progthread /* thread function */,
 			args /* thread arg */, nargs /* thread arg */);
 	if (result) {
 		kprintf("thread_fork failed: %s\n", strerror(result));
+		lock_release(proc_lock);
 		proc_destroy(proc);
 		return result;
 	}
 
+	cv_wait(proc_cv, proc_lock);
+	lock_release(proc_lock);
+	
 	/*
 	 * The new process will be destroyed when the program exits...
 	 * once you write the code for handling that.
@@ -771,6 +784,14 @@ menu_execute(char *line, int isargs)
 
 		if (isargs) {
 			kprintf("OS/161 kernel: %s\n", command);
+			proc_lock = lock_create("proc_lock");
+			if (proc_lock == NULL) {
+				panic("proc_lock: lock_create failed\n");
+			}
+			proc_cv = cv_create("proc_cv");
+			if (proc_cv == NULL) {
+				panic("proc_cv: cv_create failed\n");
+			}
 		}
 
 		result = cmd_dispatch(command);
