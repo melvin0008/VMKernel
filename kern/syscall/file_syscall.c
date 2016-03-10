@@ -267,7 +267,7 @@ sys__getcwd(char *buf, size_t buflen, size_t *retval){
     *retval=buflen - user_io.uio_resid;
     return 0;
 }
-
+/*TODO:Make it Atomid*/
 int
 sys_lseek (int fd, off_t pos, int whence,off_t *retval){
     if(is_invalid_file_descriptor(fd) || is_fh_null(fd)){
