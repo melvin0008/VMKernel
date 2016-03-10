@@ -53,7 +53,7 @@
  * The process for the kernel; this holds all the kernel-only threads.
  */
 struct proc *kproc;
-struct proc *proc_table;
+struct proc *proc_table[PID_MAX];
 
 /*
  * Create a proc structure.
