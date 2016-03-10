@@ -68,7 +68,7 @@ sys_open(userptr_t filename,int flag,int *fd)
         return ENOMEM;
     }
     lock_acquire(fh->lk);
-    set_current_fd(i,fh);;
+    set_current_fd(i,fh);
     *fd=i;
     lock_release(fh->lk);
     return 0;
