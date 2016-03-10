@@ -55,8 +55,7 @@
 
 #define MAXMENUARGS  16
 
-struct lock *proc_lock;
-struct cv *proc_cv;
+struct semaphore *proc_sem;
 
 ////////////////////////////////////////////////////////////
 //
@@ -92,16 +91,12 @@ cmd_progthread(void *ptr, unsigned long nargs)
 
 	strcpy(progname, args[0]);
 
-	lock_acquire(proc_lock);
 	result = runprogram(progname);
 	if (result) {
 		kprintf("Running program %s failed: %s\n", args[0],
 		strerror(result));
-		lock_release(proc_lock);
 		return;
 	}
-	cv_signal(proc_cv, proc_lock);
-	lock_release(proc_lock);
 
 	/* NOTREACHED: runprogram only returns on error. */
 }
@@ -131,7 +126,12 @@ common_prog(int nargs, char **args)
 		return ENOMEM;
 	}
 
-
+	// Temperory stall the process
+	proc_sem = sem_create("proc_sem", 1);
+	if (proc_sem == NULL) {
+		panic("proc_sem: lock_create failed\n");
+	}
+	P(proc_sem);
 	result = thread_fork(args[0] /* thread name */,
 			proc /* new process */,
 			cmd_progthread /* thread function */,
@@ -141,10 +141,7 @@ common_prog(int nargs, char **args)
 		proc_destroy(proc);
 		return result;
 	}
-
-	lock_acquire(proc_lock);
-	cv_wait(proc_cv, proc_lock);
-	lock_release(proc_lock);
+	P(proc_sem);
 	
 	/*
 	 * The new process will be destroyed when the program exits...
@@ -783,14 +780,6 @@ menu_execute(char *line, int isargs)
 
 		if (isargs) {
 			kprintf("OS/161 kernel: %s\n", command);
-			proc_lock = lock_create("proc_lock");
-			if (proc_lock == NULL) {
-				panic("proc_lock: lock_create failed\n");
-			}
-			proc_cv = cv_create("proc_cv");
-			if (proc_cv == NULL) {
-				panic("proc_cv: cv_create failed\n");
-			}
 		}
 
 		result = cmd_dispatch(command);
