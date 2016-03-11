@@ -97,8 +97,34 @@ proc_create(const char *name)
  	proc->exit_code = -1;
 	/* VFS fields */
 	proc->p_cwd = NULL;
+	
+	/* Allocate PID to the new proc */
+	int i;
+	for(i = 2; i < PID_MAX; i += 1){
+		if (proc_table[i] == NULL){
+			break;
+		}
+	}
+	if(i == PID_MAX){
+		panic("Max process count reached");
+	}
+	else{
+		proc->pid = i;
+		proc_table[i] = proc;
+	}
 
 	return proc;
+}
+
+/*
+*
+*Expose the static function
+*
+*/
+struct proc *
+init_proc(const char *name)
+{
+	return proc_create(name);
 }
 
 /*
@@ -243,21 +269,6 @@ proc_create_runprogram(const char *name)
 		VOP_INCREF(curproc->p_cwd);
 		newproc->p_cwd = curproc->p_cwd;
 	}
-
-	int i;
-	for(i=2; i < PID_MAX; i += 1){
-		if (proc_table[i] == NULL){
-			break;
-		}
-	}
-	if(i == PID_MAX){
-		panic("Max process count reached");
-	}
-	else{
-		newproc->pid = i;
-		proc_table[i] = newproc;
-	}
-
 	spinlock_release(&curproc->p_lock);
 
 	return newproc;
