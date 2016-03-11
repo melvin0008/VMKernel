@@ -42,6 +42,7 @@
 #include <syscall.h>
 #include <test.h>
 #include <prompt.h>
+#include <proc_syscall.h>
 #include "opt-sfs.h"
 #include "opt-net.h"
 #include "opt-synchprobs.h"
@@ -131,7 +132,8 @@ common_prog(int nargs, char **args)
 	if (proc_sem == NULL) {
 		panic("proc_sem: lock_create failed\n");
 	}
-	P(proc_sem);
+	// int *ret
+	// P(proc_sem);
 	result = thread_fork(args[0] /* thread name */,
 			proc /* new process */,
 			cmd_progthread /* thread function */,
@@ -141,8 +143,10 @@ common_prog(int nargs, char **args)
 		proc_destroy(proc);
 		return result;
 	}
-	P(proc_sem);
-	
+	// P(proc_sem);
+	int status;
+	pid_t pid;
+	sys_waitpid(proc->pid,&status,0,&pid);
 	/*
 	 * The new process will be destroyed when the program exits...
 	 * once you write the code for handling that.

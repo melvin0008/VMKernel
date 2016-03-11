@@ -52,16 +52,16 @@ sys_waitpid(pid_t pid, int *status, int options, pid_t *retval){
     (void) options;
     (void) retval;
     
-    if(status % 4 || status == NULL){
+    if(*status % 4 || status == NULL){
         return EFAULT;
     }
 
-    if(is_proc_null(pid)){
+    if(is_proc_null(pid) ||  (!is_pid_in_range(pid))){
         return ESRCH;
     }
     // TODO check if correct
 
-    if(!is_pid_in_range(pid) || (options != 0 && options != WNOHANG && options != WUNTRACED)){
+    if(options != 0 && options != WNOHANG && options != WUNTRACED){
         return EINVAL;
     }
 
@@ -76,20 +76,20 @@ sys_waitpid(pid_t pid, int *status, int options, pid_t *retval){
     // Check for Non blocking call
     if(!child->is_exited && options == WNOHANG){
         *retval = 0;
+        lock_release(child->exit_lk);
         return 0;
     }
 
-    while(!child->is_exited){
+    if(!child->is_exited){
         cv_wait(child->exit_cv, child->exit_lk);
     }
-    *retval = pid;
-
+    
     error_val = copyout(&child->exit_code, (userptr_t)status, sizeof(int));
     
     if(error_val){
         return error_val;
     }
-
+    *retval = pid;
     lock_release(child->exit_lk);
     proc_destroy(child);
 
@@ -100,24 +100,25 @@ sys_waitpid(pid_t pid, int *status, int options, pid_t *retval){
 Reference : http://jhshi.me/2012/03/11/os161-fork-system-call/index.html
 */
 
-// int child_forkentry(){
-
-// }
 void child_forkentry(void * tf_ptr, unsigned long data2)
 {
     (void ) data2;
     struct trapframe *tf;
-    int err;
-    err=copyout(tf_ptr,(userptr_t) &tf,sizeof(struct trapframe));
-    if(err){
-        return;
-    }
+    // int err;
+    // err=copyout(tf_ptr,(userptr_t) &tf,sizeof(struct trapframe));
+    // if(err){
+    //     return;
+    // }
+    // tf=tf_ptr;
+    memmove(&tf,tf_ptr,sizeof(struct trapframe));
+    as_activate();
     // tf=tf_ptr;
     // tf=tf_ptr;
-    kfree(tf_ptr);
+    
     tf->tf_v0 = 0;
     tf->tf_a3 = 0;
     tf->tf_epc += 4;
+    kfree(tf_ptr);
     mips_usermode(tf);
 }
 
@@ -128,37 +129,37 @@ sys_fork(struct trapframe *parent_tf, pid_t *retval){
     (void) parent_tf;
     (void) retval;
 
-    struct proc *child_proc = proc_create_runprogram((const char *) "child_proc");
+    struct proc *child_proc = init_proc((const char *) "child_proc");
     child_proc->ppid=curproc->pid;
 
     struct trapframe *child_tf = (struct trapframe*) kmalloc(sizeof(struct trapframe));
     if(parent_tf==NULL || child_tf==NULL){
         kfree(child_tf);
+        child_tf=NULL;
         return ENOMEM;
     }
-    // memmove(&parent_tf,child_tf,sizeof(struct trapframe));
-    child_tf = parent_tf;
+    // memmove()
+    memmove(&child_tf,parent_tf,sizeof(struct trapframe));
+    // child_tf = parent_tf;
     int err;
     // err=copyout((const void *)parent_tf, (userptr_t) child_tf,sizeof(struct trapframe));
     // if(err){
     //     return err;
     // }
-    struct addrspace *child_as;
-    err=as_copy(curproc->p_addrspace,&child_as);
+    err = as_copy(curproc->p_addrspace,&child_proc->p_addrspace);
     if(err){
         return err;
     }
-
+    // as_activate(child_as);
+    // pid_t child_thread_pid;
+    
     err = thread_fork("child_proc", child_proc, child_forkentry, child_tf,(long unsigned int) NULL);
     if (err)
     {
         return err;
     }
+    // voidchild_thread;
     *retval = child_proc->pid;
-
-    // copyout()
-    // as_copy()
-    // thread_fork()
     return 0;
 }
 

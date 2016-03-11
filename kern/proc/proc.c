@@ -48,6 +48,7 @@
 #include <current.h>
 #include <addrspace.h>
 #include <vnode.h>
+#include <kern/errno.h>
 
 /*
  * The process for the kernel; this holds all the kernel-only threads.
@@ -91,8 +92,15 @@ proc_create(const char *name)
 		panic("proc_exit_thread: cv_create failed\n");
 	}
 
- 	proc->ref_thread = curthread;  
- 	proc->ppid = -1;  
+ 	proc->ref_thread = curthread;
+ 	if(curthread!=NULL){
+
+ 		proc->ppid=curproc->pid;
+ 	}   
+ 	else{
+ 		proc->ppid = -1;  
+
+ 	}
  	proc->pid = -1;
  	proc->exit_code = -1;
 	/* VFS fields */
@@ -379,7 +387,7 @@ struct proc *get_proc(int pid){
 }
 
 bool is_pid_in_range(pid_t pid){
-	return pid >= 0 && pid < PID_MIN;
+	return pid >= 0 && pid < PID_MAX;
 }
 
 bool is_proc_null(pid_t pid){
