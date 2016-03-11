@@ -13,8 +13,11 @@
 #include <proc_syscall.h>
 #include <proc.h>
 #include <kern/wait.h>
+#include <kern/fcntl.h>
 #include <../arch/mips/include/trapframe.h>
 #include <addrspace.h>
+#include <syscall.h>
+#include <vfs.h>
 
 void child_forkentry(void * tf_ptr, unsigned long data);
 
@@ -159,11 +162,72 @@ sys_fork(struct trapframe *parent_tf, pid_t *retval){
     return 0;
 }
 
+/* Reference :
+http://jhshi.me/2012/03/11/os161-execv-system-call/index.html
+*/
+
 int
-sys_execv(const char *program, char **args){
-    (void) program;
-    (void) args;
-    return 0;
+sys_execv(const char *program_name, char **args){
+    (void ) args;
+    int err;
+    char kernel_program_name[NAME_MAX];
+    size_t actual;
+    struct addrspace *as;
+    struct vnode *vn;
+    vaddr_t entrypoint, stackptr;
+    int result; 
+
+    //Check for validations and copy name in kernel space
+    err = copyinstr((const_userptr_t) program_name, kernel_program_name, NAME_MAX, &actual);
+    if (err != 0){ 
+        return err; 
+    } 
+
+    //Opens the file
+    result = vfs_open(kernel_program_name, O_RDONLY, 0, &vn);
+    if (result) {
+        return result;
+    }
+
+    /* We should be a new process. */
+    KASSERT(proc_getas() == NULL);
+
+    /* Create a new address space. */
+    as = as_create();
+    if (as == NULL) {
+        vfs_close(vn);
+        return ENOMEM;
+    }
+
+    /* Switch to it and activate it. */
+    proc_setas(as);
+    as_activate();
+
+    /* Load the executable. */
+    result = load_elf(vn, &entrypoint);
+    if (result) {
+        /* p_addrspace will go away when curproc is destroyed */
+        vfs_close(vn);
+        return result;
+    }
+
+    /* Done with the file now. */
+    vfs_close(vn);
+
+    /* Define the user stack in the address space */
+    result = as_define_stack(as, &stackptr);
+    if (result) {
+        /* p_addrspace will go away when curproc is destroyed */
+        return result;
+    }
+
+    enter_new_process(0 /*argc*/, NULL /*userspace addr of argv*/,
+              NULL /*userspace addr of environment*/,
+              stackptr, entrypoint);
+
+    /* enter_new_process does not return. */
+    panic("enter_new_process returned\n");
+    return EINVAL;
 }
 
 

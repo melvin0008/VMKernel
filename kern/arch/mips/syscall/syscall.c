@@ -183,7 +183,7 @@ syscall(struct trapframe *tf)
 
 		case SYS_execv:
 		err = sys_execv((const char *)tf->tf_a0, (char **)tf->tf_a0);
-		retval = (int32_t)temp_retval4;
+		// retval = (int32_t)temp_retval4;
 		break;
 
 
