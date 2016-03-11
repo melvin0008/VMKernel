@@ -379,7 +379,7 @@ struct proc *get_proc(int pid){
 }
 
 bool is_pid_in_range(pid_t pid){
-	return pid >= PID_MIN && pid < PID_MIN;
+	return pid >= 0 && pid < PID_MIN;
 }
 
 bool is_proc_null(pid_t pid){

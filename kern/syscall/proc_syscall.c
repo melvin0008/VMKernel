@@ -51,15 +51,17 @@ sys_waitpid(pid_t pid, int *status, int options, pid_t *retval){
     (void) status;
     (void) options;
     (void) retval;
-    // TODO Is the status pointer properly aligned (by 4) ?
-    // TODO Is the status pointer a valid pointer anyway (NULL, point to kernel, ...)?
-    // TODO Is options valid? (More flags than WNOHANG | WUNTRACED )
+    
+    if(status % 4 || status == NULL){
+        return EFAULT;
+    }
 
     if(is_proc_null(pid)){
         return ESRCH;
     }
     // TODO check if correct
-    if(!is_pid_in_range(pid) || (options != 0 && options != 1 && options != 2)){
+
+    if(!is_pid_in_range(pid) || (options != 0 && options != WNOHANG && options != WUNTRACED)){
         return EINVAL;
     }
 
@@ -71,6 +73,11 @@ sys_waitpid(pid_t pid, int *status, int options, pid_t *retval){
     }
 
     lock_acquire(child->exit_lk);
+    // Check for Non blocking call
+    if(!child->is_exited && options == WNOHANG){
+        *retval = 0;
+        return 0;
+    }
 
     while(!child->is_exited){
         cv_wait(child->exit_cv, child->exit_lk);
