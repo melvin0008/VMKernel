@@ -16,7 +16,6 @@
 #include <../arch/mips/include/trapframe.h>
 #include <addrspace.h>
 
-
 void child_forkentry(void * tf_ptr, unsigned long data);
 
 int sys_getpid(pid_t *retval){
@@ -51,10 +50,7 @@ sys_waitpid(pid_t pid, int *status, int options, pid_t *retval){
     (void) status;
     (void) options;
     (void) retval;
-    
-    if(*status % 4 || status == NULL){
-        return EFAULT;
-    }
+
 
     if(is_proc_null(pid) ||  (!is_pid_in_range(pid))){
         return ESRCH;
@@ -83,11 +79,11 @@ sys_waitpid(pid_t pid, int *status, int options, pid_t *retval){
     if(!child->is_exited){
         cv_wait(child->exit_cv, child->exit_lk);
     }
-    
-    error_val = copyout(&child->exit_code, (userptr_t)status, sizeof(int));
-    
-    if(error_val){
-        return error_val;
+    if(status!=NULL){
+        error_val = copyout(&child->exit_code, (userptr_t)status, sizeof(int));
+        if(error_val){
+            return error_val;
+        }
     }
     *retval = pid;
     lock_release(child->exit_lk);
@@ -100,47 +96,46 @@ sys_waitpid(pid_t pid, int *status, int options, pid_t *retval){
 Reference : http://jhshi.me/2012/03/11/os161-fork-system-call/index.html
 */
 
-void child_forkentry(void * tf_ptr, unsigned long data2)
+void 
+child_forkentry(void * tf_ptr, unsigned long data2)
 {
     (void ) data2;
-    struct trapframe *tf;
+    struct trapframe tf;
     // int err;
     // err=copyout(tf_ptr,(userptr_t) &tf,sizeof(struct trapframe));
     // if(err){
     //     return;
     // }
-    // tf=tf_ptr;
-    memmove(&tf,tf_ptr,sizeof(struct trapframe));
+    tf=*(struct trapframe*)tf_ptr;
     as_activate();
     // tf=tf_ptr;
     // tf=tf_ptr;
     
-    tf->tf_v0 = 0;
-    tf->tf_a3 = 0;
-    tf->tf_epc += 4;
+    tf.tf_v0 = 0;
+    tf.tf_a3 = 0;
+    tf.tf_epc += 4;
     kfree(tf_ptr);
-    mips_usermode(tf);
+    mips_usermode(&tf);
 }
 
 
 
 int 
 sys_fork(struct trapframe *parent_tf, pid_t *retval){
-    (void) parent_tf;
-    (void) retval;
+    // (void) parent_tf;
+    // (void) retval;
 
     struct proc *child_proc = init_proc((const char *) "child_proc");
     child_proc->ppid=curproc->pid;
 
     struct trapframe *child_tf = (struct trapframe*) kmalloc(sizeof(struct trapframe));
     if(parent_tf==NULL || child_tf==NULL){
-        kfree(child_tf);
+        // kfree(child_tf);
         child_tf=NULL;
         return ENOMEM;
     }
-    // memmove()
-    memmove(&child_tf,parent_tf,sizeof(struct trapframe));
-    // child_tf = parent_tf;
+
+    *child_tf = *parent_tf;
     int err;
     // err=copyout((const void *)parent_tf, (userptr_t) child_tf,sizeof(struct trapframe));
     // if(err){
@@ -153,7 +148,7 @@ sys_fork(struct trapframe *parent_tf, pid_t *retval){
     // as_activate(child_as);
     // pid_t child_thread_pid;
     
-    err = thread_fork("child_proc", child_proc, child_forkentry, child_tf,(long unsigned int) NULL);
+    err = thread_fork("child_proc", child_proc, (void *) child_forkentry, child_tf,(long unsigned int) NULL);
     if (err)
     {
         return err;

@@ -223,7 +223,6 @@ proc_destroy(struct proc *proc)
 	
 	kfree(proc->p_name);
 	kfree(proc);
-	kfree(proc_table[pid]);
 	proc_table[pid] = NULL; 
 }
 
