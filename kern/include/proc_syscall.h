@@ -11,5 +11,6 @@ int sys_waitpid(pid_t pid, int *status, int options, pid_t *retval);
 
 int sys_fork(struct trapframe *tf, pid_t *retval);
 
+int sys_execv(const char *program, char **args);
 
 #endif /* _PROC_SYSCALL_H */

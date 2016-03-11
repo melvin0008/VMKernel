@@ -93,7 +93,7 @@ sys_waitpid(pid_t pid, int *status, int options, pid_t *retval){
 }
 
 /*
-Reference : http://jhshi.me/2012/03/11/os161-fork-system-call/index.html
+* Reference : http://jhshi.me/2012/03/11/os161-fork-system-call/index.html
 */
 
 void 
@@ -148,7 +148,7 @@ sys_fork(struct trapframe *parent_tf, pid_t *retval){
     // as_activate(child_as);
     // pid_t child_thread_pid;
     
-    err = thread_fork("child_proc", child_proc, (void *) child_forkentry, child_tf,(long unsigned int) NULL);
+    err = thread_fork("child_proc", child_proc, child_forkentry, child_tf,(long unsigned int) NULL);
     if (err)
     {
         return err;
@@ -158,5 +158,11 @@ sys_fork(struct trapframe *parent_tf, pid_t *retval){
     return 0;
 }
 
+int
+sys_execv(const char *program, char **args){
+    (void) program;
+    (void) args;
+    return 0;
+}
 
 
