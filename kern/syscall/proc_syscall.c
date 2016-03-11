@@ -93,7 +93,7 @@ sys_waitpid(pid_t pid, int *status, int options, pid_t *retval){
 }
 
 /*
-Reference : http://jhshi.me/2012/03/11/os161-fork-system-call/index.html
+* Reference : http://jhshi.me/2012/03/11/os161-fork-system-call/index.html
 */
 
 void 
@@ -160,6 +160,10 @@ sys_fork(struct trapframe *parent_tf, pid_t *retval){
 }
 
 int
-execv(const char* program, char **args){
-    
+sys_execv(const char *program, char **args){
+    (void) program;
+    (void) args;
+    return 0;
 }
+
+
