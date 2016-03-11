@@ -56,8 +56,6 @@
 
 #define MAXMENUARGS  16
 
-struct semaphore *proc_sem;
-
 ////////////////////////////////////////////////////////////
 //
 // Command menu functions
@@ -127,13 +125,6 @@ common_prog(int nargs, char **args)
 		return ENOMEM;
 	}
 
-	// Temperory stall the process
-	proc_sem = sem_create("proc_sem", 1);
-	if (proc_sem == NULL) {
-		panic("proc_sem: lock_create failed\n");
-	}
-	// int *ret
-	// P(proc_sem);
 	result = thread_fork(args[0] /* thread name */,
 			proc /* new process */,
 			cmd_progthread /* thread function */,
@@ -143,8 +134,6 @@ common_prog(int nargs, char **args)
 		proc_destroy(proc);
 		return result;
 	}
-	// P(proc_sem);
-	// int status;
 	pid_t pid;
 	sys_waitpid(proc->pid,NULL,0,&pid);
 	/*

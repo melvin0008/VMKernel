@@ -124,16 +124,17 @@ int
 sys_fork(struct trapframe *parent_tf, pid_t *retval){
     // (void) parent_tf;
     // (void) retval;
-
-    struct proc *child_proc = init_proc((const char *) "child_proc");
-    child_proc->ppid=curproc->pid;
-
     struct trapframe *child_tf = (struct trapframe*) kmalloc(sizeof(struct trapframe));
     if(parent_tf==NULL || child_tf==NULL){
-        // kfree(child_tf);
-        child_tf=NULL;
+        if(child_tf!=NULL){
+            kfree(child_tf);
+            child_tf=NULL;
+        }
         return ENOMEM;
     }
+
+    struct proc *child_proc = proc_create_runprogram((const char *) "child_proc");
+    child_proc->ppid=curproc->pid;
 
     *child_tf = *parent_tf;
     int err;
@@ -148,7 +149,7 @@ sys_fork(struct trapframe *parent_tf, pid_t *retval){
     // as_activate(child_as);
     // pid_t child_thread_pid;
     
-    err = thread_fork("child_proc", child_proc, (void *) child_forkentry, child_tf,(long unsigned int) NULL);
+    err = thread_fork("child_proc", child_proc,(void *) child_forkentry, child_tf,(long unsigned int) NULL);
     if (err)
     {
         return err;
@@ -158,5 +159,7 @@ sys_fork(struct trapframe *parent_tf, pid_t *retval){
     return 0;
 }
 
-
-
+int
+execv(const char* program, char **args){
+    
+}
