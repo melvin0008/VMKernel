@@ -532,7 +532,7 @@ thread_fork(const char *name,
 			break;
 		}
 		fh->ref_count++;
-		newthread->t_ftable[i]=fh;
+		newthread->t_ftable[i] = fh;
 	}
 
 	/* Thread subsystem fields */

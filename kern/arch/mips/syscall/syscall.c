@@ -176,6 +176,12 @@ syscall(struct trapframe *tf)
 		retval = (int32_t) temp_retval4;
 	    break;
 
+	    case SYS_fork:
+		err = sys_fork(tf, &temp_retval4);
+		retval = (int32_t)temp_retval4;
+		break;
+
+
 	    /* Add stuff here */
 
 	    default:
