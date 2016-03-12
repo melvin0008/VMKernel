@@ -186,6 +186,7 @@ sys_execv(const char *program_name, char **args){
     int i;
     // int padding=0,nargs=0;
     // char curr;
+
     char** corrected_args = (char **) kmalloc (sizeof(char*));
     err=copyin((const_userptr_t) args, corrected_args,sizeof(char **));
     if(err){
@@ -212,15 +213,6 @@ sys_execv(const char *program_name, char **args){
             *(corrected_args[k]+j)= '\0';
         }
     }
-    // corrected_args[i] = (char *) kmalloc(sizeof(char) * PATH_MAX);
-        
-    //     err = copyinstr((const_userptr_t) program_name, kernel_program_name, PATH_MAX, &actual);
-    //     if (err != 0){ 
-    //         return err; 
-    //     }
-    //Null terminated
-    // corrected_args[total]=NULL;
-
 
 
     //Opens the file
