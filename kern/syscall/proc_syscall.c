@@ -182,6 +182,27 @@ sys_execv(const char *program_name, char **args){
     if (err != 0){ 
         return err; 
     } 
+    int i;
+    int padding=0,nargs=0;
+    char curr;
+    for(i = 0; args[i] != NULL; i += 1){
+    
+
+    }
+    // char** corrected_args = (char **) kmalloc (sizeof(char*));
+
+    // corrected_args[i] = (char *) kmalloc(sizeof(char) * PATH_MAX);
+    //     if(corrected_args[i]==NULL){
+    //         return ENOMEM;
+    //     }
+    //     err = copyinstr((const_userptr_t) program_name, kernel_program_name, PATH_MAX, &actual);
+    //     if (err != 0){ 
+    //         return err; 
+    //     }
+    //Null terminated
+    corrected_args[i]=NULL;
+
+
 
     //Opens the file
     result = vfs_open(kernel_program_name, O_RDONLY, 0, &vn);
