@@ -183,8 +183,8 @@ sys_execv(const char *program_name, char **args){
         return err; 
     } 
     int i;
-    int padding=0,nargs=0;
-    char curr;
+    // int padding=0,nargs=0;
+    // char curr;
     for(i = 0; args[i] != NULL; i += 1){
     
 
@@ -200,7 +200,7 @@ sys_execv(const char *program_name, char **args){
     //         return err; 
     //     }
     //Null terminated
-    corrected_args[i]=NULL;
+    // corrected_args[i]=NULL;
 
 
 
