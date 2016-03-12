@@ -18,6 +18,7 @@
 #include <addrspace.h>
 #include <syscall.h>
 #include <vfs.h>
+#include <lib.h>
 
 void child_forkentry(void * tf_ptr, unsigned long data);
 
@@ -179,28 +180,46 @@ sys_execv(const char *program_name, char **args){
 
     //Check for validations and copy name in kernel space
     err = copyinstr((const_userptr_t) program_name, kernel_program_name, NAME_MAX, &actual);
-    if (err != 0){ 
+    if (err){ 
         return err; 
     } 
     int i;
-    int padding=0,nargs=0;
-    char curr;
-    for(i = 0; args[i] != NULL; i += 1){
-    
-
+    // int padding=0,nargs=0;
+    // char curr;
+    char** corrected_args = (char **) kmalloc (sizeof(char*));
+    err=copyin((const_userptr_t) args, corrected_args,sizeof(char **));
+    if(err){
+        return err;
+    } 
+    int total=0;
+    for(i=0;args[i]!=NULL;i++){
+        total++;
     }
-    // char** corrected_args = (char **) kmalloc (sizeof(char*));
+    int k;
+    for(k=0;k<total;k++){
+        int len = strlen(args[k]);
+        int padding =0;
+        if(len%4!=0){
+            padding=4-(len%4);
+        }
+        corrected_args[k]= (char *) kmalloc(sizeof(char)*(len+padding));
+        err = copyin((const_userptr_t) args[k],corrected_args[k],len);
+        if(err){
+            return err;
+        }
 
+        for(int j=len;j<len+padding;j++){
+            *(corrected_args[k]+j)= '\0';
+        }
+    }
     // corrected_args[i] = (char *) kmalloc(sizeof(char) * PATH_MAX);
-    //     if(corrected_args[i]==NULL){
-    //         return ENOMEM;
-    //     }
+        
     //     err = copyinstr((const_userptr_t) program_name, kernel_program_name, PATH_MAX, &actual);
     //     if (err != 0){ 
     //         return err; 
     //     }
     //Null terminated
-    corrected_args[i]=NULL;
+    // corrected_args[total]=NULL;
 
 
 
@@ -211,7 +230,7 @@ sys_execv(const char *program_name, char **args){
     }
 
     /* We should be a new process. */
-    KASSERT(proc_getas() == NULL);
+    // KASSERT(proc_getas() == NULL);
 
     /* Create a new address space. */
     as = as_create();
