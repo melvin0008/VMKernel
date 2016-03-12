@@ -186,7 +186,6 @@ sys_execv(const char *program_name, char **args){
     int i;
     // int padding=0,nargs=0;
     // char curr;
-
     char** corrected_args = (char **) kmalloc (sizeof(char*));
     err=copyin((const_userptr_t) args, corrected_args,sizeof(char **));
     if(err){
@@ -197,12 +196,14 @@ sys_execv(const char *program_name, char **args){
         total++;
     }
     int k;
+    int total_length=0;
     for(k=0;k<total;k++){
         int len = strlen(args[k]);
         int padding =0;
         if(len%4!=0){
             padding=4-(len%4);
         }
+        total_length+=len+padding;
         corrected_args[k]= (char *) kmalloc(sizeof(char)*(len+padding));
         err = copyin((const_userptr_t) args[k],corrected_args[k],len);
         if(err){
@@ -213,6 +214,16 @@ sys_execv(const char *program_name, char **args){
             *(corrected_args[k]+j)= '\0';
         }
     }
+    total_length+=((total+1)*4);
+    // corrected_args[i] = (char *) kmalloc(sizeof(char) * PATH_MAX);
+        
+    //     err = copyinstr((const_userptr_t) program_name, kernel_program_name, PATH_MAX, &actual);
+    //     if (err != 0){ 
+    //         return err; 
+    //     }
+    //Null terminated
+    corrected_args[total]=NULL;
+
 
 
     //Opens the file
@@ -252,8 +263,17 @@ sys_execv(const char *program_name, char **args){
         /* p_addrspace will go away when curproc is destroyed */
         return result;
     }
+    int pointers_length = 4*(total+1);
+    stackptr -= total_length;
+    int offset = stackptr+pointers_length;
 
-    enter_new_process(0 /*argc*/, NULL /*userspace addr of argv*/,
+    err = copyout(corrected_args,(userptr_t)offset, sizeof(corrected_args));
+    if (err) {
+        return err;
+    }
+   
+
+    enter_new_process(total, (userptr_t) offset /*userspace addr of argv*/,
               NULL /*userspace addr of environment*/,
               stackptr, entrypoint);
 
@@ -261,5 +281,3 @@ sys_execv(const char *program_name, char **args){
     panic("enter_new_process returned\n");
     return EINVAL;
 }
-
-
