@@ -29,7 +29,7 @@
 int
 sys_open(userptr_t filename,int flag,int *fd)
 {
-    
+    // int name_length=strlen((const char *)filename)+1;
     char kernel_buffer[NAME_MAX]; 
     int err,result;
     size_t actual;
@@ -39,7 +39,7 @@ sys_open(userptr_t filename,int flag,int *fd)
     int i;
 
     err = copyinstr((const_userptr_t) filename, kernel_buffer, NAME_MAX, &actual);
-    if (err != 0){ 
+    if (err){ 
         return err; 
     } 
     result = vfs_open(kernel_buffer,flag, 0664 , &vn);
@@ -63,14 +63,23 @@ sys_open(userptr_t filename,int flag,int *fd)
     if(is_invalid_file_descriptor(i)){
         return EMFILE;
     }
-    fh = fhandle_create((const char*)filename,vn,offset,flag);
+    fh = fhandle_create((const char*)filename, vn, offset, flag);
     if(fh == NULL){
+        kfree(fh);
         return ENOMEM;
     }
     lock_acquire(fh->lk);
     set_current_fd(i,fh);
     *fd=i;
     lock_release(fh->lk);
+
+    // kfree(kernel_buffer); 
+    err = result = 0;
+    actual = 0;
+    vn = NULL;
+    offset = 0;
+    fh = NULL;
+    i = 0;
     return 0;
 }
 
@@ -184,6 +193,8 @@ sys_write(int fd, void *buf, size_t buflen, ssize_t *retval){
         return EBADF;
     }
     
+    // kfree(&user_io);
+    // kfree(&io_vec);
     return 0;
 }
 

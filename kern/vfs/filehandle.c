@@ -13,6 +13,7 @@ fhandle_create(const char *name, struct vnode *vn, off_t offset, int permission_
     struct fhandle *fh;
     fh = kmalloc(sizeof(*fh)); 
     if (fh == NULL) {
+        kfree(fh);
         return NULL;
     }
 
@@ -38,10 +39,6 @@ void fhandle_destroy(struct fhandle *fh){
     // vnode_cleanup(fh->vn);
     lock_destroy(fh->lk);
     kfree(fh);
-    // TODO MEMORY MANAGEMENT
-    // fh->offset = NULL;
-    // fh->permission_flags = NULL;
-    // fh->ref_count = NULL;
 };
 
 struct fhandle *get_filehandle(int fd){
