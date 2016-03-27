@@ -284,9 +284,9 @@ sys_execv(const char *program_name, char **args){
     int temp = 0;
     copyout( &temp,(void *) temp_stackptr, 4);
 
-    for(i=0;i<total;i++){
-        kfree(*(corrected_args+i));
-    }
+    // for(i=0;i<total;i++){
+    //     kfree(*(corrected_args+i));
+    // }
     // as_deactivate();
     // as_destroy(as);
 
