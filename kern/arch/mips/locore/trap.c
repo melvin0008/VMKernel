@@ -34,10 +34,12 @@
 #include <mips/trapframe.h>
 #include <cpu.h>
 #include <spl.h>
+#include <proc.h>
 #include <thread.h>
 #include <current.h>
 #include <vm.h>
 #include <mainbus.h>
+#include <kern/wait.h>
 #include <syscall.h>
 
 
@@ -114,7 +116,15 @@ kill_curthread(vaddr_t epc, unsigned code, vaddr_t vaddr)
 
 	kprintf("Fatal user mode trap %u sig %d (%s, epc 0x%x, vaddr 0x%x)\n",
 		code, sig, trapcodenames[code], epc, vaddr);
-	panic("I don't know how to handle this\n");
+	// panic("I don't know how to handle this\n");
+	lock_acquire(curproc->exit_lk);
+    
+    curproc->is_exited = true;
+    curproc->exit_code = _MKWAIT_SIG(sig);
+    
+    cv_signal(curproc->exit_cv, curproc->exit_lk);
+    lock_release(curproc->exit_lk);
+	thread_exit();
 }
 
 /*

@@ -57,7 +57,7 @@ sys_waitpid(pid_t pid, int *status, int options, pid_t *retval){
     (void) retval;
 
 
-    if(is_proc_null(pid) ||  (!is_pid_in_range(pid))){
+    if((!is_pid_in_range(pid)) || is_proc_null(pid)){
         return ESRCH;
     }
     if(status == KERN_PTR || status == INVAL_PTR){
@@ -181,23 +181,25 @@ sys_execv(const char *program_name, char **args){
     vaddr_t entrypoint, stackptr;
     vaddr_t temp_stackptr;
     int result; 
+    char kernel_program_name[NAME_MAX];
+
 
     if(program_name==NULL || (userptr_t) program_name ==(userptr_t)INVAL_PTR || (userptr_t) program_name == (userptr_t) KERN_PTR ){
         return EFAULT;
     }
 
-    if(strlen(program_name)==0){
-        return EINVAL;
-    }
-    int prog_length = strlen(program_name) + 1;
-   
-    char kernel_program_name[prog_length];
-    //Check for validations and copy name in kernel space
-    err = copyinstr((const_userptr_t) program_name, kernel_program_name, prog_length, &actual);
+    err = copyinstr((const_userptr_t) program_name, kernel_program_name, NAME_MAX, &actual);
     if (err){ 
         return err; 
     } 
     int i;
+    if(strlen(kernel_program_name)==0){
+        return EINVAL;
+    }
+    // int prog_length = strlen(kernel_program_name) + 1;
+   
+    //Check for validations and copy name in kernel space
+    
     char** corrected_args = (char **) kmalloc (sizeof(char*));
     err = copyin((const_userptr_t) args, corrected_args,sizeof(char **));
     if(err){ 
