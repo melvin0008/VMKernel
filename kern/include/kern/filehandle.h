@@ -10,7 +10,8 @@ File Handle Definition
 #include <vnode.h>
 
 /*Didn't know where else to add this*/
-#define INVAL_ADDR 0x40000000
+#define KERN_PTR    ((void *)0x80000000)    /* addr within kernel */
+#define INVAL_PTR ((void *)0x40000000)
 
 struct fhandle
 {

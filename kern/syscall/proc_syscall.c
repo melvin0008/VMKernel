@@ -20,6 +20,7 @@
 #include <vfs.h>
 #include <lib.h>
 
+
 void child_forkentry(void * tf_ptr, unsigned long data);
 
 int sys_getpid(pid_t *retval){
@@ -58,6 +59,9 @@ sys_waitpid(pid_t pid, int *status, int options, pid_t *retval){
 
     if(is_proc_null(pid) ||  (!is_pid_in_range(pid))){
         return ESRCH;
+    }
+    if(status == KERN_PTR || status == INVAL_PTR){
+        return EFAULT;
     }
     // TODO check if correct
 
@@ -178,7 +182,15 @@ sys_execv(const char *program_name, char **args){
     vaddr_t temp_stackptr;
     int result; 
 
+    if(program_name==NULL || (userptr_t) program_name ==(userptr_t)INVAL_PTR || (userptr_t) program_name == (userptr_t) KERN_PTR ){
+        return EFAULT;
+    }
+
+    if(strlen(program_name)==0){
+        return EINVAL;
+    }
     int prog_length = strlen(program_name) + 1;
+   
     char kernel_program_name[prog_length];
     //Check for validations and copy name in kernel space
     err = copyinstr((const_userptr_t) program_name, kernel_program_name, prog_length, &actual);
@@ -193,6 +205,9 @@ sys_execv(const char *program_name, char **args){
     } 
     int total = 0;
     for(i = 0; args[i] != NULL; i++){
+        if(args[i]==INVAL_PTR || args[i]==KERN_PTR){
+            return EFAULT;
+        }
         total++;
     }
     int kargv_length[total];

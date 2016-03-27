@@ -72,14 +72,6 @@ sys_open(userptr_t filename,int flag,int *fd)
     set_current_fd(i,fh);
     *fd=i;
     lock_release(fh->lk);
-
-    // kfree(kernel_buffer); 
-    err = result = 0;
-    actual = 0;
-    vn = NULL;
-    offset = 0;
-    fh = NULL;
-    i = 0;
     return 0;
 }
 
@@ -215,7 +207,7 @@ sys_dup2(int oldfd, int newfd){
         return 0;
     }
     struct fhandle *old_fh= get_filehandle(oldfd);
-    lock_acquire(old_fh->lk);
+    // lock_acquire(old_fh->lk);
     if(!is_fh_null(newfd)){
         int err = sys_close(newfd);
         if(err){
@@ -224,7 +216,7 @@ sys_dup2(int oldfd, int newfd){
     }
     curthread->t_ftable[oldfd]->ref_count++;
     set_current_fd(newfd,old_fh);
-    lock_release(old_fh->lk);
+    // lock_release(old_fh->lk);
     return 0;
 
 }
@@ -257,7 +249,7 @@ sys_chdir(const char *pathname){
 int
 sys__getcwd(char *buf, size_t buflen, size_t *retval){
     
-    if(buf==NULL || (userptr_t) buf== (userptr_t)INVAL_ADDR){
+    if(buf==NULL || (userptr_t) buf== (userptr_t)INVAL_PTR || (userptr_t) buf== (userptr_t) KERN_PTR){
         return EFAULT;
     }
 
@@ -292,7 +284,7 @@ sys_lseek (int fd, off_t pos, int whence,off_t *retval){
         return EINVAL;
     }
     if(fd == STDIN_FILENO || fd == STDOUT_FILENO || fd == STDERR_FILENO ){
-        return ESPIPE;
+        return 0;
     }
     //Make sure what they mean by resulting seek position
     // if(pos<0){
@@ -302,10 +294,8 @@ sys_lseek (int fd, off_t pos, int whence,off_t *retval){
     int result;
     lock_acquire(fh->lk);
     off_t new_offset = 0;
+    
     struct stat stat_offset;
-    if(!VOP_ISSEEKABLE(fh->vn)){
-        return ESPIPE;
-    }
     switch(whence){
         case SEEK_SET:
             new_offset = pos;
@@ -327,6 +317,10 @@ sys_lseek (int fd, off_t pos, int whence,off_t *retval){
         return EINVAL;
     }
     fh->offset=new_offset;
+    if(!VOP_ISSEEKABLE(fh->vn)){
+        lock_release(fh->lk);
+        return ESPIPE;
+    }
     *retval=new_offset;
     lock_release(fh->lk);
     return 0;
