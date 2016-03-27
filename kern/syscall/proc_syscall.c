@@ -186,8 +186,6 @@ sys_execv(const char *program_name, char **args){
         return err; 
     } 
     int i;
-    // int padding=0,nargs=0;
-    // char curr;
     char** corrected_args = (char **) kmalloc (sizeof(char*));
     err = copyin((const_userptr_t) args, corrected_args,sizeof(char **));
     if(err){ 
@@ -201,12 +199,16 @@ sys_execv(const char *program_name, char **args){
     int k;
     int total_length = 0;
     for(k = 0; k < total; k++){
-        int len = strlen(args[k])+1;
+
+        int len = strlen(args[k]);
         int padding = 0;
         if((len % 4) != 0){
-            padding = 4 - (len%4);
-            
+            padding = 4 - (len%4);    
         }
+        else{
+            padding=4;
+        }
+
         kargv_length[k] = len + padding;
         total_length += len + padding;
         
@@ -222,16 +224,6 @@ sys_execv(const char *program_name, char **args){
         }
     }
     total_length += ((total + 1) * 4);
-    // corrected_args[i] = (char *) kmalloc(sizeof(char) * PATH_MAX);
-        
-    //     err = copyinstr((const_userptr_t) program_name, kernel_program_name, PATH_MAX, &actual);
-    //     if (err != 0){ 
-    //         return err; 
-    //     }
-    //Null terminated
-    // corrected_args[total] = NULL;
-
-
 
     //Opens the file
     result = vfs_open(kernel_program_name, O_RDONLY, 0, &vn);
@@ -270,14 +262,18 @@ sys_execv(const char *program_name, char **args){
         /* p_addrspace will go away when curproc is destroyed */
         return result;
     }
-    int pointers_length = 4*(total+1);
+    int pointers_length = 4 * (total + 1);
     stackptr -= total_length;
     vaddr_t offset = stackptr + pointers_length;
-
-    err = copyout(corrected_args,(userptr_t)offset, total_length-pointers_length);
-    if (err) {
-        return err;
+    vaddr_t temp_offset1 = offset;
+    for(i=0;i <total;i++){
+        err = copyout(*(corrected_args+i),(userptr_t)temp_offset1, kargv_length[i]);
+        if (err) {
+            return err;
+        }    
+        temp_offset1+=kargv_length[i];
     }
+    
     vaddr_t temp_offset = offset;
     temp_stackptr = stackptr;
     for(i = 0; i < total; i++){
@@ -288,7 +284,13 @@ sys_execv(const char *program_name, char **args){
     int temp = 0;
     copyout( &temp,(void *) temp_stackptr, 4);
 
-    kprintf()
+    // for(i=0;i<total;i++){
+    //     kfree(*(corrected_args+i));
+    // }
+    // as_deactivate();
+    // as_destroy(as);
+
+    // kprintf()
     enter_new_process(total, (userptr_t) stackptr /*userspace addr of argv*/,
               NULL /*userspace addr of environment*/,
               stackptr, entrypoint);
