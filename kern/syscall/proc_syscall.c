@@ -15,10 +15,10 @@
 #include <kern/wait.h>
 #include <kern/fcntl.h>
 #include <../arch/mips/include/trapframe.h>
-#include <addrspace.h>
 #include <syscall.h>
 #include <vfs.h>
 #include <lib.h>
+#include <addrspace.h>
 
 
 void child_forkentry(void * tf_ptr, unsigned long data);
@@ -199,6 +199,7 @@ sys_execv(const char *program_name, char **args){
     // int prog_length = strlen(kernel_program_name) + 1;
    
     //Check for validations and copy name in kernel space
+    struct addrspace *parent_addrspace = curproc->p_addrspace;
     
     char** corrected_args = (char **) kmalloc (sizeof(char*));
     err = copyin((const_userptr_t) args, corrected_args,sizeof(char **));
@@ -251,6 +252,7 @@ sys_execv(const char *program_name, char **args){
     /* We should be a new process. */
     // KASSERT(proc_getas() == NULL);
 
+    
     /* Create a new address space. */
     as = as_create();
     if (as == NULL) {
@@ -302,10 +304,11 @@ sys_execv(const char *program_name, char **args){
     copyout( &temp,(void *) temp_stackptr, 4);
 
     // for(i=0;i<total;i++){
-    //     kfree(*(corrected_args+i));
+    kfree(*corrected_args);
     // }
     // as_deactivate();
-    // as_destroy(as);
+
+    as_destroy(parent_addrspace);
 
     // kprintf()
     enter_new_process(total, (userptr_t) stackptr /*userspace addr of argv*/,
