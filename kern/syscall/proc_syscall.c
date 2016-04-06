@@ -248,10 +248,6 @@ sys_execv(const char *program_name, char **args){
     if (result) {
         return result;
     }
-
-    /* We should be a new process. */
-    // KASSERT(proc_getas() == NULL);
-
     
     /* Create a new address space. */
     as = as_create();
