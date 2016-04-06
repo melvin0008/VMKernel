@@ -432,6 +432,12 @@ defoption netfs
 # Note that "emufs" is completely contained in the "emu" device.
 #
 
+#
+# vm
+#
+
+defoption awesome_vm
+file      vm/vm.c
 
 ########################################
 #                                      #

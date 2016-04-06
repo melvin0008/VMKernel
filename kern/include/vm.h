@@ -45,6 +45,23 @@
 #define VM_FAULT_READONLY    2    /* A write to a readonly page was attempted*/
 
 
+struct coremap_entry
+{
+    // Page state booleans
+    bool is_free:1;
+    bool is_fixed:1;
+    bool is_dirty:1;
+    bool is_clean:1;
+    // To be used in k_free
+    size_t chunk_size;
+    // Synchronization for page
+    struct spinlock *cmap_entry_spinlock;
+};
+
+struct coremap_entry *coremap;
+
+void init_coremap(void);
+
 /* Initialization function */
 void vm_bootstrap(void);
 
