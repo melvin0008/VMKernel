@@ -13,6 +13,8 @@ static struct spinlock stealmem_lock = SPINLOCK_INITIALIZER;
 static uint32_t total_num_pages;
 static paddr_t free_address;
 static bool is_bootstrapped = false;
+static uint32_t first_free_page;
+
 
 void 
 init_coremap(){
@@ -20,30 +22,30 @@ init_coremap(){
     paddr_t last_address = ram_getsize();
     paddr_t first_address = ram_getfirstfree();
     uint32_t index ;
-    total_num_pages = (last_address - first_address) / PAGE_SIZE;
+    total_num_pages = last_address/ PAGE_SIZE;
 
     spinlock_init(&coremap_spinlock);
     coremap = (struct coremap_entry*) PADDR_TO_KVADDR(first_address);
     free_address = first_address + total_num_pages * (sizeof(struct coremap_entry));
-
+    first_free_page = free_address / PAGE_SIZE;
     // Iterate all kernel entries
-    for(index = 0; index <= (free_address / PAGE_SIZE); index ++ ){
+    for(index = 0; index < first_free_page ; index ++ ){
         struct coremap_entry new_cmap_entry;
         new_cmap_entry.is_fixed = true;
         new_cmap_entry.is_free = false;
         new_cmap_entry.is_dirty = false;
         new_cmap_entry.is_clean = false;
-        new_cmap_entry.chunk_size = 0;
+        new_cmap_entry.chunk_size = 1;
         coremap[index] = new_cmap_entry;
     }
 
-    for(index = (free_address / PAGE_SIZE)+1; index < (last_address / PAGE_SIZE); index ++ ){
+    for(index = first_free_page ; index < total_num_pages; index ++ ){
         struct coremap_entry new_cmap_entry;
         new_cmap_entry.is_fixed = false;
         new_cmap_entry.is_free = true;
         new_cmap_entry.is_dirty = false;
         new_cmap_entry.is_clean = false;
-        new_cmap_entry.chunk_size = 0;
+        new_cmap_entry.chunk_size = 1;
         coremap[index] = new_cmap_entry;
     }
     is_bootstrapped =true;
@@ -91,13 +93,15 @@ alloc_kpages(unsigned npages){
             //Multiple Pages
         spinlock_acquire(&coremap_spinlock);
             uint32_t start_page = 0;
+            uint32_t j;
             for(uint32_t i = (free_address / PAGE_SIZE)+1; i<total_num_pages; i++ ){
                 bool found_section = false;
                 start_page = i;
                 if( i+npages> total_num_pages){
+                    spinlock_release(&coremap_spinlock);
                     return 0;
                 }
-                for(uint32_t j = start_page; j < start_page+npages; j++ ){
+                for( j = start_page; j < start_page+npages; j++ ){
                     if(!coremap[j].is_fixed && (coremap[j].is_free || coremap[j].is_clean || coremap[j].is_dirty)){
                         found_section = true;
                         // i++;
@@ -107,16 +111,17 @@ alloc_kpages(unsigned npages){
                         break;
                     }
                 }
-                // if(i>=total_num_pages){
-                //     return 0;
-                // }
+                if(j>=total_num_pages){
+                    spinlock_release(&coremap_spinlock);
+                    return 0;
+                }
                 if(found_section){
                     coremap[start_page].is_fixed = true;
                     coremap[start_page].is_free  = false;
                     coremap[start_page].is_dirty = false;
                     coremap[start_page].is_clean = false;
                     coremap[start_page].chunk_size = npages;
-                    p = start_page * PAGE_SIZE;
+                    
                     break;
                 }
             }
@@ -125,10 +130,11 @@ alloc_kpages(unsigned npages){
                 coremap[i].is_free  = false;
                 coremap[i].is_dirty = false;
                 coremap[i].is_clean = false;
-                coremap[i].chunk_size = 0;
+                coremap[i].chunk_size = 1;
             }
-
+            p = start_page * PAGE_SIZE;
             spinlock_release(&coremap_spinlock);
+            bzero((void *)PADDR_TO_KVADDR(p), npages * PAGE_SIZE);
         // }
         // else{
         //     //Single Page
@@ -161,8 +167,8 @@ free_kpages(vaddr_t addr){
         size_t chunk_size = cmap_entry.chunk_size;
         // cmap_entry.chunk_size = 1;
         // Check if we are freeing a valid chunk
-        KASSERT(chunk_size != 0);
-        cmap_entry.chunk_size = 0;
+        // KASSERT(chunk_size != 0);
+        cmap_entry.chunk_size = 1;
         for(loop_index = 0; loop_index < chunk_size; loop_index += 1){
             new_index = cmap_index + loop_index;
             cmap_entry = coremap[new_index];
@@ -182,14 +188,13 @@ coremap_used_bytes(void){
     
     // TODO check if active waiting is costly
     spinlock_acquire(&coremap_spinlock);
-    for(index = 0; index < total_num_pages; index += 1){
+    for(index = (free_address / PAGE_SIZE) ; index < total_num_pages; index += 1){
         if(!coremap[index].is_free){
             total_used_entries++;
         }
-
     }    
     spinlock_release(&coremap_spinlock);
-    return total_used_entries * PAGE_SIZE;
+    return total_used_entries * PAGE_SIZE ;
 };
 
 void 
