@@ -87,7 +87,18 @@ free_kpages(vaddr_t addr){
 
 unsigned int
 coremap_used_bytes(void){
-    return 0;
+    unsigned int total_used_entries = 0, index;
+    
+    // TODO check if active waiting is costly
+    // spinlock_acquire(&coremap_spinlock);
+    for(index = 0; index < total_num_pages; index += 1){
+        if(!coremap[index].is_free){
+            total_used_entries++;
+        }
+
+    }    
+    // spinlock_release(&coremap_spinlock);
+    return total_used_entries * PAGE_SIZE;
 };
 
 void 
