@@ -55,9 +55,9 @@ struct coremap_entry
     // To be used in k_free
     size_t chunk_size;
     // Synchronization for page
-    struct spinlock *cmap_entry_spinlock;
 };
 
+struct spinlock coremap_spinlock;
 struct coremap_entry *coremap;
 
 void init_coremap(void);
