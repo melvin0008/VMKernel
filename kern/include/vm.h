@@ -38,6 +38,7 @@
 
 
 #include <machine/vm.h>
+#include <spinlock.h>
 
 /* Fault-type arguments to vm_fault() */
 #define VM_FAULT_READ        0    /* A read was attempted */
@@ -57,7 +58,6 @@ struct coremap_entry
     // Synchronization for page
 };
 
-struct spinlock coremap_spinlock;
 struct coremap_entry *coremap;
 
 void init_coremap(void);

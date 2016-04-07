@@ -8,10 +8,12 @@
 #include <spinlock.h>
 #include <cpu.h>
 
+static struct spinlock coremap_spinlock;
 static struct spinlock stealmem_lock = SPINLOCK_INITIALIZER;
 static uint32_t total_num_pages;
 static paddr_t free_address;
 static bool is_bootstrapped = false;
+
 void 
 init_coremap(){
     spinlock_init(&stealmem_lock);
