@@ -345,9 +345,12 @@ file      proc/proc.c
 # (you will probably want to add stuff here while doing the VM assignment)
 #
 
+defoption awesome_vm
+optfile   awesome_vm   vm/vm.c
 file      vm/kmalloc.c
 
 optofffile dumbvm   vm/addrspace.c
+#optofffile awesome_vm   vm/addrspace.c
 
 #
 # Network
@@ -432,12 +435,7 @@ defoption netfs
 # Note that "emufs" is completely contained in the "emu" device.
 #
 
-#
-# vm
-#
 
-defoption awesome_vm
-file      vm/vm.c
 
 ########################################
 #                                      #
