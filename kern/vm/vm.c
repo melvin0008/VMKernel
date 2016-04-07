@@ -1,6 +1,7 @@
 // Initialization 
 
 #include <types.h>
+#include <lib.h>
 #include <spinlock.h>
 #include <vm.h>
 
