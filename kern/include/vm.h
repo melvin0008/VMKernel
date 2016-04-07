@@ -55,7 +55,6 @@ struct coremap_entry
     bool is_clean:1;
     // To be used in k_free
     size_t chunk_size;
-    // Synchronization for page
 };
 
 struct coremap_entry *coremap;

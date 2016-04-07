@@ -41,6 +41,8 @@ static void set_cmap_free(struct coremap_entry *cmap , size_t chunk_size){
 //     set_cmap_entry(&cmap,false,false,false,true,chunk_size);
 // }
 
+//Ref :
+//http://jhshi.me/2012/04/24/os161-coremap/index.html
 void 
 init_coremap(){
     spinlock_init(&stealmem_lock);
@@ -48,11 +50,10 @@ init_coremap(){
     paddr_t first_address = ram_getfirstfree();
     uint32_t index ;
     total_num_pages = last_address/ PAGE_SIZE;
-
     spinlock_init(&coremap_spinlock);
     coremap = (struct coremap_entry*) PADDR_TO_KVADDR(first_address);
     free_address = first_address + total_num_pages * (sizeof(struct coremap_entry));
-    first_free_page = free_address / PAGE_SIZE;
+    first_free_page = free_address / PAGE_SIZE + 1;
     // Iterate all kernel entries
     for(index = 0; index < first_free_page ; index ++ ){
         set_cmap_fixed(&coremap[index],0);
@@ -76,16 +77,18 @@ vm_fault(int faulttype, vaddr_t faultaddress){
     return 0;
 };
 
+//Ref :
+//http://jhshi.me/2012/04/24/os161-physical-page-management/index.html
 vaddr_t
 alloc_kpages(unsigned npages){
     paddr_t p;
     KASSERT(npages>0);
-    // if(npages>1){
+    if(npages>1){
         //Multiple Pages
         spinlock_acquire(&coremap_spinlock);
         uint32_t start_page = 0;
         uint32_t j;
-        for(uint32_t i = first_free_page+1; i<total_num_pages; i++ ){
+        for(uint32_t i = first_free_page; i<total_num_pages; i++ ){
             bool found_section = false;
             start_page = i;
             if( i+npages> total_num_pages){
@@ -117,23 +120,23 @@ alloc_kpages(unsigned npages){
         p = start_page * PAGE_SIZE;
         spinlock_release(&coremap_spinlock);
         bzero((void *)PADDR_TO_KVADDR(p), npages * PAGE_SIZE);
-    // }
-    // else{
-    //     //Single Page
+    }
+    else{
+        //Single Page
 
-    //     uint32_t i;
-    //     for( i= first_free_page; i<total_num_pages; i++){
-    //         if(!coremap[i].is_fixed && (coremap[i].is_free || coremap[i].is_clean || coremap[i].is_dirty)){
-    //             set_cmap_fixed(&coremap[i],1);
-    //             p = i * PAGE_SIZE;
-    //             bzero((void *)PADDR_TO_KVADDR(p), PAGE_SIZE);
-    //             break;
-    //         }
-    //     }
-    //     if(i>=total_num_pages){
-    //         return 0;
-    //     }
-// }
+        uint32_t i;
+        for( i = first_free_page; i < total_num_pages; i++){
+            if(!coremap[i].is_fixed && (coremap[i].is_free || coremap[i].is_clean || coremap[i].is_dirty)){
+                set_cmap_fixed(&coremap[i],1);
+                p = i * PAGE_SIZE;
+                bzero((void *)PADDR_TO_KVADDR(p), PAGE_SIZE);
+                break;
+            }
+        }
+        if(i>=total_num_pages){
+            return 0;
+        }
+    }
 
     return PADDR_TO_KVADDR(p);
 };
