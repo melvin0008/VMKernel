@@ -86,6 +86,7 @@ alloc_kpages(unsigned npages){
         KASSERT(npages>0);
         // if(npages>1){
             //Multiple Pages
+        spinlock_acquire(&coremap_spinlock);
             uint32_t start_page = 0;
             for(uint32_t i = 0; i<total_num_pages; i++ ){
                 bool found_section = false;
@@ -93,8 +94,8 @@ alloc_kpages(unsigned npages){
                 if( i+npages> total_num_pages){
                     return 0;
                 }
-                for(uint32_t j = i; j < i+npages; j++ ){
-                    if(!coremap[i].is_fixed && (coremap[i].is_free || coremap[i].is_clean || coremap[i].is_dirty)){
+                for(uint32_t j = i; j < start_page+npages; j++ ){
+                    if(!coremap[j].is_fixed && (coremap[j].is_free || coremap[j].is_clean || coremap[j].is_dirty)){
                         found_section = true;
                         i++;
                     }
@@ -107,15 +108,16 @@ alloc_kpages(unsigned npages){
                     return 0;
                 }
                 if(found_section){
-                    coremap[i].is_fixed = true;
-                    coremap[i].is_free  = false;
-                    coremap[i].is_dirty = false;
-                    coremap[i].is_clean = false;
-                    coremap[i].chunk_size = i - start_page;
+                    coremap[start_page].is_fixed = true;
+                    coremap[start_page].is_free  = false;
+                    coremap[start_page].is_dirty = false;
+                    coremap[start_page].is_clean = false;
+                    coremap[start_page].chunk_size = i - start_page;
                     break;
                 }
                 p = start_page * PAGE_SIZE;
             }
+            spinlock_release(&coremap_spinlock);
             for (uint32_t i = start_page+1; i < npages+start_page; i++){
                 coremap[i].is_fixed = true;
                 coremap[i].is_free  = false;
