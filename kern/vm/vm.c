@@ -33,7 +33,7 @@ init_coremap(){
         new_cmap_entry.is_free = false;
         new_cmap_entry.is_dirty = false;
         new_cmap_entry.is_clean = false;
-        new_cmap_entry.chunk_size = 1;
+        new_cmap_entry.chunk_size = 0;
         coremap[index] = new_cmap_entry;
     }
 
@@ -43,7 +43,7 @@ init_coremap(){
         new_cmap_entry.is_free = true;
         new_cmap_entry.is_dirty = false;
         new_cmap_entry.is_clean = false;
-        new_cmap_entry.chunk_size = 1;
+        new_cmap_entry.chunk_size = 0;
         coremap[index] = new_cmap_entry;
     }
     is_bootstrapped =true;
@@ -125,7 +125,7 @@ alloc_kpages(unsigned npages){
                 coremap[i].is_free  = false;
                 coremap[i].is_dirty = false;
                 coremap[i].is_clean = false;
-                coremap[i].chunk_size = 1;
+                coremap[i].chunk_size = 0;
             }
 
             spinlock_release(&coremap_spinlock);
@@ -159,9 +159,10 @@ free_kpages(vaddr_t addr){
         struct coremap_entry cmap_entry = coremap[cmap_index];
         // Get the size of the chunk
         size_t chunk_size = cmap_entry.chunk_size;
-        cmap_entry.chunk_size = 1;
+        // cmap_entry.chunk_size = 1;
         // Check if we are freeing a valid chunk
-        // KASSERT(chunk_size != 0);
+        KASSERT(chunk_size != 0);
+        cmap_entry.chunk_size = 0;
         for(loop_index = 0; loop_index < chunk_size; loop_index += 1){
             new_index = cmap_index + loop_index;
             cmap_entry = coremap[new_index];
