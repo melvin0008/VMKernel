@@ -81,6 +81,9 @@ alloc_kpages(unsigned npages){
     paddr_t p;
     if(!is_bootstrapped){
         p = getppages(npages);
+        if(p==0 || p%PAGE_SIZE!=0){
+            return 0;
+        }
     }
     else{
         KASSERT(npages>0);
@@ -147,6 +150,7 @@ void
 free_kpages(vaddr_t addr){
     // Refer PADDR_TO_KVADDR
     if(is_bootstrapped){
+        KASSERT(addr%PAGE_SIZE==0);
         paddr_t physical_page_addr = addr - MIPS_KSEG0;
         uint32_t cmap_index = physical_page_addr / PAGE_SIZE;
         uint32_t loop_index, new_index;
@@ -176,14 +180,14 @@ coremap_used_bytes(void){
     unsigned int total_used_entries = 0, index;
     
     // TODO check if active waiting is costly
-    // spinlock_acquire(&coremap_spinlock);
+    spinlock_acquire(&coremap_spinlock);
     for(index = 0; index < total_num_pages; index += 1){
         if(!coremap[index].is_free){
             total_used_entries++;
         }
 
     }    
-    // spinlock_release(&coremap_spinlock);
+    spinlock_release(&coremap_spinlock);
     return total_used_entries * PAGE_SIZE;
 };
 
