@@ -141,27 +141,29 @@ alloc_kpages(unsigned npages){
 void
 free_kpages(vaddr_t addr){
     // Refer PADDR_TO_KVADDR
-    paddr_t physical_page_addr = addr - MIPS_KSEG0;
-    uint32_t cmap_index = physical_page_addr / PAGE_SIZE;
-    uint32_t loop_index, new_index;
-
-    spinlock_acquire(&coremap_spinlock);
-    struct coremap_entry cmap_entry = coremap[cmap_index];
-    // Get the size of the chunk
-    size_t chunk_size = cmap_entry.chunk_size;
-    cmap_entry.chunk_size = 0;
-    // Check if we are freeing a valid chunk
-    KASSERT(chunk_size != 0);
-    for(loop_index = 0; loop_index < chunk_size; loop_index += 1){
-        new_index = cmap_index + loop_index;
-        cmap_entry = coremap[new_index];
-        cmap_entry.is_fixed = false;
-        cmap_entry.is_free = true;
-        cmap_entry.is_dirty = false;
-        cmap_entry.is_clean = false;
-        coremap[new_index] = cmap_entry;
+    if(is_bootstrapped){
+        paddr_t physical_page_addr = addr - MIPS_KSEG0;
+        uint32_t cmap_index = physical_page_addr / PAGE_SIZE;
+        uint32_t loop_index, new_index;
+            
+        spinlock_acquire(&coremap_spinlock);
+        struct coremap_entry cmap_entry = coremap[cmap_index];
+        // Get the size of the chunk
+        size_t chunk_size = cmap_entry.chunk_size;
+        cmap_entry.chunk_size = 0;
+        // Check if we are freeing a valid chunk
+        KASSERT(chunk_size != 0);
+        for(loop_index = 0; loop_index < chunk_size; loop_index += 1){
+            new_index = cmap_index + loop_index;
+            cmap_entry = coremap[new_index];
+            cmap_entry.is_fixed = false;
+            cmap_entry.is_free = true;
+            cmap_entry.is_dirty = false;
+            cmap_entry.is_clean = false;
+            coremap[new_index] = cmap_entry;
+        }
+        spinlock_release(&coremap_spinlock);
     }
-    spinlock_release(&coremap_spinlock);
 };
 
 unsigned int
