@@ -162,7 +162,7 @@ sys_fork(struct trapframe *parent_tf, pid_t *retval){
     {
         return err;
     }
-    // voidchild_thread;
+    // voidchild_thread;             
     *retval = child_proc->pid;
     return 0;
 }
@@ -184,7 +184,7 @@ sys_execv(const char *program_name, char **args){
     char kernel_program_name[NAME_MAX];
 
 
-    if(program_name==NULL || (userptr_t) program_name ==(userptr_t)INVAL_PTR || (userptr_t) program_name == (userptr_t) KERN_PTR ){
+    if(program_name==NULL || program_name ==INVAL_PTR || program_name == KERN_PTR ){
         return EFAULT;
     }
 
@@ -200,19 +200,26 @@ sys_execv(const char *program_name, char **args){
    
     //Check for validations and copy name in kernel space
     struct addrspace *parent_addrspace = curproc->p_addrspace;
-    
-    char** corrected_args = (char **) kmalloc (sizeof(char*));
-    err = copyin((const_userptr_t) args, corrected_args,sizeof(char **));
-    if(err){ 
-        return err;
-    } 
+    if(args==NULL  || (args== INVAL_PTR) || (args  == KERN_PTR)){
+        return EFAULT;
+    }
+
     int total = 0;
     for(i = 0; args[i] != NULL; i++){
-        if(args[i]==INVAL_PTR || args[i]==KERN_PTR){
+        if( args[i]== INVAL_PTR ||  args[i]== KERN_PTR){
             return EFAULT;
         }
         total++;
     }
+    if(args==NULL || total==0 ){
+        return EFAULT;
+    }
+
+    char** corrected_args = (char **) kmalloc (sizeof(char*)*total);
+    err = copyin((const_userptr_t) args, corrected_args,sizeof(char **));
+    if(err){ 
+        return err;
+    } 
     int kargv_length[total];
     int k;
     int total_length = 0;
@@ -257,6 +264,10 @@ sys_execv(const char *program_name, char **args){
     as = as_create();
     if (as == NULL) {
         vfs_close(vn);
+        for(i=0;i<total;i++){
+        kfree(corrected_args[i]);
+        }
+        kfree(corrected_args);
         return ENOMEM;
     }
 
@@ -268,6 +279,11 @@ sys_execv(const char *program_name, char **args){
     result = load_elf(vn, &entrypoint);
     if (result) {
         /* p_addrspace will go away when curproc is destroyed */
+        for(i=0;i<total;i++){
+            kfree(corrected_args[i]);
+        }
+        kfree(corrected_args);
+        as_destroy(parent_addrspace);
         vfs_close(vn);
         return result;
     }
@@ -303,13 +319,11 @@ sys_execv(const char *program_name, char **args){
     int temp = 0;
     copyout( &temp,(void *) temp_stackptr, 4);
 
-    // for(i=0;i<total;i++){
-    kfree(*corrected_args);
-    // }
-    // as_deactivate();
-
+    for(i=0;i<total;i++){
+        kfree(corrected_args[i]);
+    }
+    kfree(corrected_args);
     as_destroy(parent_addrspace);
-
     // kprintf()
     enter_new_process(total, (userptr_t) stackptr /*userspace addr of argv*/,
               NULL /*userspace addr of environment*/,
