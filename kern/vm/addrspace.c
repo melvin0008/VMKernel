@@ -128,6 +128,13 @@ as_destroy(struct addrspace *as)
 	/*
 	 * Clean up as needed.
 	 */
+    struct page_table_entry* next;
+    struct page_table_entry* pte_entry = as->pte_head;
+	while(pte_entry != NULL){
+		next = pte_entry->next;
+		kfree(pte_entry);
+		pte_entry = next;
+    }
 	kfree(as);
 }
 
@@ -191,12 +198,15 @@ as_define_region(struct addrspace *as, vaddr_t vaddr, size_t memsize,
 	// information, so you can check if the faultaddress is valid in vm_fault() or not.
 	// Also make sure to adjust the heap start point.
 
+	// TODO Sanitize the vaddr (Alignment)
+	int permissions = readable | writeable | executable;
+	(void) permissions;
+	// Inject these permissions in the region metadata
 	(void)as;
 	(void)vaddr;
 	(void)memsize;
-	(void)readable;
-	(void)writeable;
-	(void)executable;
+	as->heap_start = as->heap_end = vaddr + memsize;
+	
 	return ENOSYS;
 }
 
