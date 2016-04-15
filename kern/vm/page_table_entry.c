@@ -41,3 +41,21 @@ void destroy_page_table_entry(struct page_table_entry *pte){
     (void) pte;
     // Cleanup
 };
+<<<<<<< HEAD
+=======
+
+struct page_table_entry * 
+search_pte(struct addrspace *as, vaddr va){
+    struct page_table_entry *pte_entry = as->pte_head;
+    struct page_table_entry *next;
+    vaddr vpn:20 = va & PAGE_FRAME;
+
+    while(pte_entry != NULL){
+        if(vpn == pte_entry->virtual_page_number){
+            return pte_entry;
+        }
+        pte_entry = pte_entry->next;
+    }   
+    return NULL;
+}
+>>>>>>> 22fba9b461a7f218f8d03c3c00902d14057c3d74

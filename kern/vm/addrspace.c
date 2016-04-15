@@ -77,7 +77,11 @@ as_create(void)
 	/*
 	 * Initialize as needed.
 	 */
-
+	as->stack_end  = USERSTACK;
+    as->heap_start = 0;
+    as->heap_end = 0;
+    as->region_head = NULL;
+    as->pte_head =  NULL;
 	return as;
 }
 
@@ -92,7 +96,7 @@ as_copy(struct addrspace *old, struct addrspace **ret)
 	struct addrspace *newas;
 
 	newas = as_create();
-	if (newas==NULL) {
+	if (newas == NULL) {
 		return ENOMEM;
 	}
 
@@ -115,6 +119,7 @@ as_destroy(struct addrspace *as)
 
 	kfree(as);
 }
+
 
 void
 as_activate(void)
