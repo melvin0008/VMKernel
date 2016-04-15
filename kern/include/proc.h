@@ -38,10 +38,27 @@
 
 #include <spinlock.h>
 #include <limits.h>
+#include <types.h>
 
 struct addrspace;
 struct thread;
 struct vnode;
+
+// Assignment 3.2 ---> Virtual address Spaces stuff
+
+struct page_table_entry{
+    paddr_t virtual_page_number:20; 
+    paddr_t physical_page_number:20; //?????
+    int permission:3;
+    bool state:1;
+    bool valid:1;
+    bool referenced:1;
+    struct page_table_entry* next;
+};
+
+struct page_table_entry* create_page_table_entry(void);
+void destroy_page_table_entry(struct page_table_entry*);
+
 
 /*
  * Process structure.
@@ -78,7 +95,8 @@ struct proc {
     bool is_exited;
     struct lock* exit_lk;
     struct cv* exit_cv;
-    struct thread* ref_thread;  
+    struct thread* ref_thread;
+    struct page_table_entry* first_page_table_entry;
     /*
     process tothread
     file table

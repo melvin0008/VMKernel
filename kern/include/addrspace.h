@@ -48,6 +48,13 @@ struct vnode;
  * You write this.
  */
 
+struct addrspace_region {
+  int permission;
+  size_t size;
+  vaddr_t start;
+  struct addrspace_region *next;
+};
+
 struct addrspace {
 #if OPT_DUMBVM
         vaddr_t as_vbase1;
@@ -59,6 +66,12 @@ struct addrspace {
         paddr_t as_stackpbase;
 #else
         /* Put stuff here for your VM system */
+        // Since stack start is common for all and constant
+        // we can omit it
+        vaddr_t stack_end;
+        vaddr_t heap_start;
+        vaddr_t heap_end;
+        struct addrspace_region *region_head;
 #endif
 };
 

@@ -60,6 +60,11 @@ as_create(void)
 int
 as_copy(struct addrspace *old, struct addrspace **ret)
 {
+	// Recitation notes 
+	// Usage example : kern/syscall/loadelf.c
+	// 
+	// Create an exact copy of the passed address space structure and also copy every page.
+	// Feel free to implement Copy-On-Write (COW) page.
 	struct addrspace *newas;
 
 	newas = as_create();
@@ -90,6 +95,11 @@ as_destroy(struct addrspace *as)
 void
 as_activate(void)
 {
+	// Recitation notes 
+	// Usage example : kern/syscall/loadelf.c
+	// 
+	// Used when context switch happens. It invalidates all TLB entries and make
+	// current process's address space the one currently seen by the processor.
 	struct addrspace *as;
 
 	as = proc_getas();
@@ -109,6 +119,10 @@ as_activate(void)
 void
 as_deactivate(void)
 {
+	// Recitation notes 
+	// Usage example : kern/syscall/loadelf.c
+	// 
+	// Unload current process's address space so it isn't seen by the processor.
 	/*
 	 * Write this. For many designs it won't need to actually do
 	 * anything. See proc.c for an explanation of why it (might)
@@ -130,9 +144,12 @@ int
 as_define_region(struct addrspace *as, vaddr_t vaddr, size_t memsize,
 		 int readable, int writeable, int executable)
 {
-	/*
-	 * Write this.
-	 */
+	// Recitation notes 
+	// Usage example : kern/syscall/loadelf.c
+	// 
+	// Setup a region of memory within the address space and store its
+	// information, so you can check if the faultaddress is valid in vm_fault() or not.
+	// Also make sure to adjust the heap start point.
 
 	(void)as;
 	(void)vaddr;
@@ -146,6 +163,12 @@ as_define_region(struct addrspace *as, vaddr_t vaddr, size_t memsize,
 int
 as_prepare_load(struct addrspace *as)
 {
+	// Recitation notes
+	// Usage example : kern/syscall/loadelf.c
+	// 
+	// Called before loading from an executable into the address space. 
+	// It should setup page table entries for each region and 
+	// make the pages writable despite of its real permission.
 	/*
 	 * Write this.
 	 */
@@ -157,6 +180,12 @@ as_prepare_load(struct addrspace *as)
 int
 as_complete_load(struct addrspace *as)
 {
+	// Recitation notes
+	// Usage example : kern/syscall/loadelf.c
+	// 
+	// Called when loading from an executable is complete. 
+	// It should restore pages permission to what it was before calling as_prepare_load() 
+	// and invalidate TLB entries if needed.
 	/*
 	 * Write this.
 	 */
@@ -168,6 +197,11 @@ as_complete_load(struct addrspace *as)
 int
 as_define_stack(struct addrspace *as, vaddr_t *stackptr)
 {
+	// Recitation notes
+	// Usage example : kern/syscall/loadelf.c
+	// 
+	// Setup the stack region in the address space and 
+	// return the initial stack pointer for the new process.
 	/*
 	 * Write this.
 	 */
