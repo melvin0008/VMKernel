@@ -93,7 +93,7 @@ alloc_kpages(unsigned npages){
                 return 0;
             }
             for( j = start_page; j < start_page+npages; j++ ){
-                if(!coremap[j].is_fixed && (coremap[j].is_free || coremap[j].is_clean || coremap[j].is_dirty)){
+                if(!coremap[j].is_fixed){
                     found_section = true;
                     // i++;
                 }
@@ -122,8 +122,9 @@ alloc_kpages(unsigned npages){
         //Single Page
 
         uint32_t i;
+        spinlock_acquire(&coremap_spinlock);
         for( i = first_free_page; i < total_num_pages; i++){
-            if(!coremap[i].is_fixed && (coremap[i].is_free || coremap[i].is_clean || coremap[i].is_dirty)){
+            if(!coremap[i].is_fixed){
                 set_cmap_fixed(&coremap[i],1);
                 p = i * PAGE_SIZE;
                 bzero((void *)PADDR_TO_KVADDR(p), PAGE_SIZE);
@@ -131,8 +132,10 @@ alloc_kpages(unsigned npages){
             }
         }
         if(i>=total_num_pages){
+            spinlock_release(&coremap_spinlock);
             return 0;
         }
+        spinlock_release(&coremap_spinlock);
     }
 
     return PADDR_TO_KVADDR(p);
@@ -159,6 +162,25 @@ free_kpages(vaddr_t addr){
     }
     spinlock_release(&coremap_spinlock);
 };
+
+vaddr_t page_alloc(){
+    uint32_t i;
+    paddr_t p;
+    spinlock_acquire(&coremap_spinlock);
+    for( i = first_free_page; i < total_num_pages; i++){
+        if(!coremap[i].is_fixed && (coremap[i].is_free || coremap[i].is_clean || coremap[i].is_dirty)){
+            set_cmap_fixed(&coremap[i],1);
+            p = i * PAGE_SIZE;
+            bzero((void *)PADDR_TO_KVADDR(p), PAGE_SIZE);
+            break;
+        }
+    }
+    if(i>=total_num_pages){
+        return 0;
+    }
+    return PADDR_TO_KVADDR(p);
+};
+
 
 unsigned int
 coremap_used_bytes(void){
