@@ -53,7 +53,11 @@ as_create(void)
 	/*
 	 * Initialize as needed.
 	 */
-
+	as->stack_end  = USERSTACK;
+    as->heap_start = NULL;
+    as->heap_end = NULL;
+    as->region_head = NULL;
+    as->pte_head =  NULL;
 	return as;
 }
 
@@ -68,7 +72,7 @@ as_copy(struct addrspace *old, struct addrspace **ret)
 	struct addrspace *newas;
 
 	newas = as_create();
-	if (newas==NULL) {
+	if (newas == NULL) {
 		return ENOMEM;
 	}
 
@@ -90,6 +94,11 @@ as_destroy(struct addrspace *as)
 	 */
 
 	kfree(as);
+}
+
+static struct page_table_entry * 
+pgdir_walk(struct addrspace *as, vaddr *va){
+	
 }
 
 void
