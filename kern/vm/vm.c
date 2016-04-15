@@ -32,9 +32,9 @@ static void set_cmap_free(struct coremap_entry *cmap , size_t chunk_size){
     set_cmap_entry(cmap,false,true,false,false,chunk_size);
 }
 
-// static void set_cmap_dirty(struct coremap_entry *cmap , size_t chunk_size){
-//     set_cmap_entry(&cmap,false,false,true,false,chunk_size);
-// }
+static void set_cmap_dirty(struct coremap_entry *cmap , size_t chunk_size){
+    set_cmap_entry(cmap,false,false,true,false,chunk_size);
+}
 
 // static void set_cmap_clean(struct coremap_entry *cmap , size_t chunk_size){
 //     set_cmap_entry(&cmap,false,false,false,true,chunk_size);
@@ -142,8 +142,7 @@ alloc_kpages(unsigned npages){
 };
 
 void
-free_kpages(vaddr_t addr){
-
+free_pages(vaddr_t addr){
     KASSERT( addr % PAGE_SIZE == 0);
     // Refer PADDR_TO_KVADDR
     paddr_t physical_page_addr = addr - MIPS_KSEG0;
@@ -163,13 +162,26 @@ free_kpages(vaddr_t addr){
     spinlock_release(&coremap_spinlock);
 };
 
+void
+free_kpages(vaddr_t addr){
+    free_pages(addr);
+};
+
+void page_free(vaddr_t addr){
+    free_pages(addr);
+    // TODO check if the page is mapped to any file
+    // or basically see if it is a userspace page and 
+    // based on that swap it to disk / unmap it.
+    // TODO Also shootdown TLB entry if needed
+};
+
 vaddr_t page_alloc(){
     uint32_t i;
     paddr_t p;
     spinlock_acquire(&coremap_spinlock);
     for( i = first_free_page; i < total_num_pages; i++){
-        if(!coremap[i].is_fixed && (coremap[i].is_free || coremap[i].is_clean || coremap[i].is_dirty)){
-            set_cmap_fixed(&coremap[i],1);
+        if(!coremap[i].is_fixed){
+            set_cmap_dirty(&coremap[i],1);
             p = i * PAGE_SIZE;
             bzero((void *)PADDR_TO_KVADDR(p), PAGE_SIZE);
             break;
@@ -180,6 +192,8 @@ vaddr_t page_alloc(){
     }
     return PADDR_TO_KVADDR(p);
 };
+
+
 
 
 unsigned int
