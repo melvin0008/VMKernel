@@ -150,17 +150,6 @@ proc_create(const char *name)
 }
 
 /*
-*
-*Expose the static function
-*
-*/
-struct proc *
-init_proc(const char *name)
-{
-	return proc_create(name);
-}
-
-/*
  * Destroy a proc structure.
  *
  * Note: nothing currently calls this. Your wait/exit code will

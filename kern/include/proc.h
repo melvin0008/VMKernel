@@ -125,7 +125,6 @@ bool is_pid_in_range(pid_t pid);
 bool is_proc_null(pid_t pid);
 bool is_proc_valid(pid_t pid);
 
-struct proc * init_proc(const char *name);
 /* Destroy a process. */
 void proc_destroy(struct proc *proc);
 
