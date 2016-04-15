@@ -1,11 +1,15 @@
+#include <types.h>
+#include <kern/errno.h>
+#include <lib.h>
+#include <addrspace.h>
+#include <vm.h> 
 #include <page_table_entry.h>
 
 // Create and init
 struct page_table_entry*
 create_page_table_entry(vaddr_t vpn, paddr_t ppn){
 
-    struct page_table_entry *pte;
-    pte = kmalloc(sizeof(*pte));
+    struct page_table_entry *pte = kmalloc(sizeof(struct page_table_entry));
     if (pte == NULL) {
         return NULL;
     };
@@ -19,8 +23,8 @@ create_page_table_entry(vaddr_t vpn, paddr_t ppn){
     return pte;
 };
 
-struct page_table_entry*
-add_pte(addrspace as, vaddr_t vpn, paddr_t ppn){
+struct page_table_entry
+*add_pte(struct addrspace *as, vaddr_t vpn, paddr_t ppn){
 
     if(as->pte_head == NULL){
         as->pte_head = create_page_table_entry(vpn,ppn);
@@ -43,10 +47,9 @@ void destroy_page_table_entry(struct page_table_entry *pte){
 };
 
 struct page_table_entry * 
-search_pte(struct addrspace *as, vaddr va){
+search_pte(struct addrspace *as, vaddr_t va){
     struct page_table_entry *pte_entry = as->pte_head;
-    struct page_table_entry *next;
-    vaddr vpn:20 = va & PAGE_FRAME;
+    vaddr_t vpn = va & PAGE_FRAME;
 
     while(pte_entry != NULL){
         if(vpn == pte_entry->virtual_page_number){
@@ -55,4 +58,28 @@ search_pte(struct addrspace *as, vaddr va){
         pte_entry = pte_entry->next;
     }   
     return NULL;
+}
+
+struct
+page_table_entry *copy_pt(struct page_table_entry *old_pte , int32_t *retval){
+    if(old_pte == NULL){
+        *retval = 0;
+        return NULL;
+    }
+    struct page_table_entry *new_pte = kmalloc(sizeof(struct page_table_entry));
+    if(new_pte == NULL){
+        *retval = ENOMEM;
+        return NULL;
+    }
+    new_pte->virtual_page_number = old_pte->virtual_page_number;
+    new_pte->physical_page_number = old_pte->physical_page_number;
+    new_pte->permission = old_pte->permission;
+    new_pte->state = old_pte->state;
+    new_pte->referenced = old_pte->referenced;
+    new_pte->next = copy_pt(old_pte->next,retval);
+    if(*retval!=0){
+        return NULL;
+    }
+    *retval = 0;
+    return new_pte;
 }

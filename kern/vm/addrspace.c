@@ -33,6 +33,7 @@
 #include <addrspace.h>
 #include <vm.h>
 #include <proc.h>
+#include <page_table_entry.h>
 
 /*
  * Note! If OPT_DUMBVM is set, as is the case until you start the VM
@@ -40,29 +41,8 @@
  * used. The cheesy hack versions in dumbvm.c are used instead.
  */
 
-// Create and init
-struct page_table_entry*
-create_page_table_entry(){
-
-	struct page_table_entry *pte;
-	pte = kmalloc(sizeof(*pte));
-	if (pte == NULL) {
-		return NULL;
-	};
-	pte->virtual_page_number = 0;
-	pte->physical_page_number = 0;
-	pte->permission = 0;
-	pte->state = 0;
-	pte->valid = 0;
-	pte->referenced = 0;
-	pte->next = NULL;
-	return pte;
-};
-
-void destroy_page_table_entry(struct page_table_entry *pte){
-	(void) pte;
-	// Cleanup
-};
+static struct
+addrspace_region *copy_region(struct addrspace_region *, int32_t *);
 
 struct addrspace *
 as_create(void)
@@ -103,11 +83,43 @@ as_copy(struct addrspace *old, struct addrspace **ret)
 	/*
 	 * Write this.
 	 */
-
-	(void)old;
-
+	int32_t retval_region;
+	int32_t retval_pte;
+	newas->stack_end  = old->stack_end;
+    newas->heap_start = old->heap_start;
+    newas->heap_end = old->heap_end;
+    newas->region_head = copy_region(old->region_head,&retval_region);
+    if(retval_region != 0){
+    	return ENOMEM;
+    }
+    newas->pte_head = copy_pt(old->pte_head,&retval_pte);
+    if(retval_pte != 0){
+    	return ENOMEM;
+    }
 	*ret = newas;
 	return 0;
+}
+
+static struct
+addrspace_region *copy_region(struct addrspace_region *old_region , int32_t *retval){
+	if(old_region == NULL){
+		*retval = 0;
+		return NULL;
+	}
+	struct addrspace_region *new_region = kmalloc(sizeof(struct addrspace_region));
+	if(new_region == NULL){
+		*retval = ENOMEM;
+		return NULL;
+	}
+	new_region->permission = old_region->permission;
+	new_region->size = old_region->size;
+	new_region->start = old_region->start;
+	new_region->next = copy_region(old_region->next,retval);
+	if(*retval!=0){
+		return NULL;
+	}
+	*retval = 0;
+	return new_region;
 }
 
 void
@@ -116,7 +128,6 @@ as_destroy(struct addrspace *as)
 	/*
 	 * Clean up as needed.
 	 */
-
 	kfree(as);
 }
 
