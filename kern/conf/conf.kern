@@ -349,6 +349,7 @@ defoption awesome_vm
 #optfile   awesome_vm   vm/vm.c
 file      vm/kmalloc.c
 file      vm/vm.c
+file      vm/page_table_entry.c
 
 optofffile dumbvm   vm/addrspace.c
 #optofffile awesome_vm   vm/addrspace.c

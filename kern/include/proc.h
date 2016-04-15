@@ -96,7 +96,7 @@ struct proc {
     struct lock* exit_lk;
     struct cv* exit_cv;
     struct thread* ref_thread;
-    struct page_table_entry* first_page_table_entry;
+    
     /*
     process tothread
     file table

@@ -40,6 +40,30 @@
  * used. The cheesy hack versions in dumbvm.c are used instead.
  */
 
+// Create and init
+struct page_table_entry*
+create_page_table_entry(){
+
+	struct page_table_entry *pte;
+	pte = kmalloc(sizeof(*pte));
+	if (pte == NULL) {
+		return NULL;
+	};
+	pte->virtual_page_number = 0;
+	pte->physical_page_number = 0;
+	pte->permission = 0;
+	pte->state = 0;
+	pte->valid = 0;
+	pte->referenced = 0;
+	pte->next = NULL;
+	return pte;
+};
+
+void destroy_page_table_entry(struct page_table_entry *pte){
+	(void) pte;
+	// Cleanup
+};
+
 struct addrspace *
 as_create(void)
 {
@@ -54,8 +78,8 @@ as_create(void)
 	 * Initialize as needed.
 	 */
 	as->stack_end  = USERSTACK;
-    as->heap_start = NULL;
-    as->heap_end = NULL;
+    as->heap_start = 0;
+    as->heap_end = 0;
     as->region_head = NULL;
     as->pte_head =  NULL;
 	return as;
@@ -96,10 +120,6 @@ as_destroy(struct addrspace *as)
 	kfree(as);
 }
 
-static struct page_table_entry * 
-pgdir_walk(struct addrspace *as, vaddr *va){
-	
-}
 
 void
 as_activate(void)
