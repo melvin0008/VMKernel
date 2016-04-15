@@ -41,8 +41,6 @@ void destroy_page_table_entry(struct page_table_entry *pte){
     (void) pte;
     // Cleanup
 };
-<<<<<<< HEAD
-=======
 
 struct page_table_entry * 
 search_pte(struct addrspace *as, vaddr va){
@@ -58,4 +56,3 @@ search_pte(struct addrspace *as, vaddr va){
     }   
     return NULL;
 }
->>>>>>> 22fba9b461a7f218f8d03c3c00902d14057c3d74
