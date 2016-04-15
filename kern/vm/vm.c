@@ -9,7 +9,6 @@
 #include <cpu.h>
 
 static struct spinlock coremap_spinlock;
-static struct spinlock stealmem_lock = SPINLOCK_INITIALIZER;
 static uint32_t total_num_pages;
 static paddr_t free_address;
 static uint32_t first_free_page;
@@ -45,7 +44,6 @@ static void set_cmap_free(struct coremap_entry *cmap , size_t chunk_size){
 //http://jhshi.me/2012/04/24/os161-coremap/index.html
 void 
 init_coremap(){
-    spinlock_init(&stealmem_lock);
     paddr_t last_address = ram_getsize();
     paddr_t first_address = ram_getfirstfree();
     uint32_t index ;
@@ -58,7 +56,6 @@ init_coremap(){
     for(index = 0; index < first_free_page ; index ++ ){
         set_cmap_fixed(&coremap[index],0);
     }
-
     for(index = first_free_page ; index < total_num_pages; index ++ ){
         set_cmap_free(&coremap[index],0);
     }
