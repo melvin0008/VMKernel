@@ -40,7 +40,6 @@
 
 struct vnode;
 
-
 /*
  * Address space - data structure associated with the virtual memory
  * space of a process.
@@ -72,6 +71,8 @@ struct addrspace {
         vaddr_t heap_start;
         vaddr_t heap_end;
         struct addrspace_region *region_head;
+        // Head of the page_table
+        struct page_table_entry* pte_head;
 #endif
 };
 
