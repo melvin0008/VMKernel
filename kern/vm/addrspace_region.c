@@ -50,3 +50,14 @@ set_region_data(struct addrspace *as, vaddr_t vaddr, size_t memsize, int permiss
     }
     return 0;
 }
+
+struct addrspace_region *
+get_region_for(struct addrspace *as, vaddr_t faultaddress){
+    struct addrspace_region *addr_region = as->region_head;
+    while(addr_region != NULL){
+        if(faultaddress >= addr_region->start && faultaddress <= (addr_region->start + addr_region->size)){
+            return addr_region;
+        }
+    }
+    return NULL;
+}

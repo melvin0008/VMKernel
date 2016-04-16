@@ -4,6 +4,9 @@
 #include <lib.h>
 #include <spinlock.h>
 #include <vm.h>
+#include <kern/errno.h>
+#include <proc.h>
+#include <addrspace.h>
 #include <current.h>
 #include <spinlock.h>
 #include <cpu.h>
@@ -69,8 +72,22 @@ vm_bootstrap(void){
 
 int
 vm_fault(int faulttype, vaddr_t faultaddress){
-    (void) faulttype;
-    (void) faultaddress;
+    struct addrspace* as = proc_getas();    
+    // Check if the address is a valid userspace address
+    struct addrspace_region *addr_region = get_region_for(as, faultaddress);
+    if(addr_region == NULL){
+        return EFAULT;
+    }
+
+    switch(faulttype){
+        case VM_FAULT_READ:
+        case VM_FAULT_WRITE:
+        case VM_FAULT_READONLY:
+        break;
+        default:
+        return EFAULT;
+    }
+
     return 0;
 };
 

@@ -11,8 +11,8 @@ struct addrspace_region {
   struct addrspace_region *next;
 };
 
-struct
-addrspace_region *copy_region(struct addrspace_region *, int32_t *);
+struct addrspace_region *copy_region(struct addrspace_region *, int32_t *);
 
-int
-set_region_data(struct addrspace *as, vaddr_t vaddr, size_t memsize, int permission);
+int set_region_data(struct addrspace *as, vaddr_t vaddr, size_t memsize, int permission);
+
+struct addrspace_region *get_region_for(struct addrspace *as, vaddr_t faultaddress);
