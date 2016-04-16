@@ -37,6 +37,7 @@
 
 #include <vm.h>
 #include "opt-dumbvm.h"
+#include <addrspace_region.h>
 
 struct vnode;
 
@@ -46,13 +47,6 @@ struct vnode;
  *
  * You write this.
  */
-
-struct addrspace_region {
-  int permission;
-  size_t size;
-  vaddr_t start;
-  struct addrspace_region *next;
-};
 
 struct addrspace {
 #if OPT_DUMBVM

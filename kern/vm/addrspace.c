@@ -41,8 +41,6 @@
  * used. The cheesy hack versions in dumbvm.c are used instead.
  */
 
-static struct
-addrspace_region *copy_region(struct addrspace_region *, int32_t *);
 
 struct addrspace *
 as_create(void)
@@ -100,27 +98,7 @@ as_copy(struct addrspace *old, struct addrspace **ret)
 	return 0;
 }
 
-static struct
-addrspace_region *copy_region(struct addrspace_region *old_region , int32_t *retval){
-	if(old_region == NULL){
-		*retval = 0;
-		return NULL;
-	}
-	struct addrspace_region *new_region = kmalloc(sizeof(struct addrspace_region));
-	if(new_region == NULL){
-		*retval = ENOMEM;
-		return NULL;
-	}
-	new_region->permission = old_region->permission;
-	new_region->size = old_region->size;
-	new_region->start = old_region->start;
-	new_region->next = copy_region(old_region->next,retval);
-	if(*retval!=0){
-		return NULL;
-	}
-	*retval = 0;
-	return new_region;
-}
+
 
 void
 as_destroy(struct addrspace *as)
@@ -198,16 +176,22 @@ as_define_region(struct addrspace *as, vaddr_t vaddr, size_t memsize,
 	// information, so you can check if the faultaddress is valid in vm_fault() or not.
 	// Also make sure to adjust the heap start point.
 
-	// TODO Sanitize the vaddr (Alignment)
-	int permissions = readable | writeable | executable;
-	(void) permissions;
-	// Inject these permissions in the region metadata
-	(void)as;
-	(void)vaddr;
-	(void)memsize;
-	as->heap_start = as->heap_end = vaddr + memsize;
+
+	// Adjust the heap
+	size_t heap_start = vaddr + memsize;
+	// Properly align the start
+	heap_start = heap_start + (heap_start % PAGE_SIZE);	
+
+	int permission = readable | writeable | executable;
+	int result = set_region_data(as,vaddr,memsize,permission);
+	if(result){
+		return result;
+	}
 	
-	return ENOSYS;
+	
+	as->heap_start = as->heap_end = heap_start;
+	
+	return 0;
 }
 
 int
