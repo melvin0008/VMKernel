@@ -187,6 +187,7 @@ vaddr_t page_alloc(){
             break;
         }
     }
+    spinlock_release(&coremap_spinlock);
     if(i>=total_num_pages){
         return 0;
     }

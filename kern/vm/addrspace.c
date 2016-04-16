@@ -30,6 +30,7 @@
 #include <types.h>
 #include <kern/errno.h>
 #include <lib.h>
+#include <current.h>
 #include <addrspace.h>
 #include <vm.h>
 #include <proc.h>
@@ -110,6 +111,7 @@ as_destroy(struct addrspace *as)
     struct page_table_entry* pte_entry = as->pte_head;
 	while(pte_entry != NULL){
 		next = pte_entry->next;
+		page_free(pte_entry->virtual_page_number);
 		kfree(pte_entry);
 		pte_entry = next;
     }
@@ -139,6 +141,8 @@ as_activate(void)
 	/*
 	 * Write this.
 	 */
+
+	// Call tlb_shootdown 
 }
 
 void
@@ -177,10 +181,18 @@ as_define_region(struct addrspace *as, vaddr_t vaddr, size_t memsize,
 	// Also make sure to adjust the heap start point.
 
 
-	// Adjust the heap
-	size_t heap_start = vaddr + memsize;
-	// Properly align the start
-	heap_start = heap_start + (heap_start % PAGE_SIZE);	
+	// // Adjust the heap
+	// size_t heap_start = vaddr + memsize;
+	// // Properly align the start
+	// heap_start += (heap_start % PAGE_SIZE);	
+
+	// Steal address translation from dumbvm
+	/* Align the region. First, the base... */
+	memsize += vaddr & ~(vaddr_t)PAGE_FRAME;
+	vaddr &= PAGE_FRAME;
+
+	/* ...and now the length. */
+	memsize = (memsize + PAGE_SIZE - 1) & PAGE_FRAME;
 
 	int permission = readable | writeable | executable;
 	int result = set_region_data(as,vaddr,memsize,permission);
@@ -188,8 +200,7 @@ as_define_region(struct addrspace *as, vaddr_t vaddr, size_t memsize,
 		return result;
 	}
 	
-	
-	as->heap_start = as->heap_end = heap_start;
+	as->heap_start = as->heap_end = vaddr + memsize;
 	
 	return 0;
 }
