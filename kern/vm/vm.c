@@ -159,10 +159,9 @@ alloc_kpages(unsigned npages){
 };
 
 void
-free_pages(vaddr_t addr){
-    KASSERT( addr % PAGE_SIZE == 0);
+free_pages(paddr_t physical_page_addr){
+    KASSERT( physical_page_addr % PAGE_SIZE == 0);
     // Refer PADDR_TO_KVADDR
-    paddr_t physical_page_addr = addr - MIPS_KSEG0;
     uint32_t cmap_index = physical_page_addr / PAGE_SIZE;
     uint32_t last_index;
         
@@ -181,10 +180,10 @@ free_pages(vaddr_t addr){
 
 void
 free_kpages(vaddr_t addr){
-    free_pages(addr);
+    free_pages(addr - MIPS_KSEG0);
 };
 
-void page_free(vaddr_t addr){
+void page_free(paddr_t addr){
     free_pages(addr);
     // TODO check if the page is mapped to any file
     // or basically see if it is a userspace page and 
@@ -192,7 +191,7 @@ void page_free(vaddr_t addr){
     // TODO Also shootdown TLB entry if needed
 };
 
-vaddr_t page_alloc(){
+paddr_t page_alloc(){
     uint32_t i;
     paddr_t p;
     spinlock_acquire(&coremap_spinlock);
@@ -208,7 +207,7 @@ vaddr_t page_alloc(){
     if(i>=total_num_pages){
         return 0;
     }
-    return PADDR_TO_KVADDR(p);
+    return p;
 };
 
 

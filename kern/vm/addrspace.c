@@ -63,8 +63,7 @@ as_create(void)
     as->heap_start = 0;
     as->heap_end = 0;
     as->region_head = NULL;
-    // Alllocate a new first page
-    add_pte(as);
+    as->pte_head = NULL;
 	return as;
 }
 
