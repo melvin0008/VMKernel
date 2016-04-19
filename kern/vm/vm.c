@@ -64,7 +64,7 @@ init_coremap(){
     first_free_page = free_address / PAGE_SIZE + 1;
     // Iterate all kernel entries
     for(index = 0; index < first_free_page ; index ++ ){
-        set_cmap_fixed(&coremap[index],0);
+        set_cmap_fixed(&coremap[index],1);
     }
     for(index = first_free_page ; index < total_num_pages; index ++ ){
         set_cmap_free(&coremap[index],0);
@@ -147,6 +147,28 @@ alloc_kpages(unsigned npages){
     return PADDR_TO_KVADDR(p);
 };
 
+
+paddr_t page_alloc(){
+    uint32_t i;
+    paddr_t p;
+    spinlock_acquire(&coremap_spinlock);
+    for( i = first_free_page; i < total_num_pages; i++){
+        if(coremap[i].is_free){
+            set_cmap_dirty(&coremap[i],1);
+            p = i * PAGE_SIZE;
+            bzero((void *)PADDR_TO_KVADDR(p), PAGE_SIZE);
+            break;
+        }
+    }
+    spinlock_release(&coremap_spinlock);
+    if(i>=total_num_pages){
+        panic("No Page left");
+        return 0;
+    }
+    return p;
+};
+
+
 void
 free_pages(paddr_t physical_page_addr, vaddr_t v_addr){
     KASSERT( physical_page_addr % PAGE_SIZE == 0);
@@ -158,7 +180,7 @@ free_pages(paddr_t physical_page_addr, vaddr_t v_addr){
     // Get the size of the chunk
     size_t chunk_size = coremap[cmap_index].chunk_size;
     // Check if we are freeing a valid chunk
-    KASSERT(chunk_size != 0);
+    // KASSERT(chunk_size != 0);
     
     last_index = (cmap_index+chunk_size);
     for(; cmap_index <last_index ; cmap_index ++){
@@ -185,34 +207,42 @@ free_kpages(vaddr_t addr){
     free_pages(addr - MIPS_KSEG0, addr);
 };
 
-void page_free(paddr_t p_addr, vaddr_t v_addr){
+void page_free(paddr_t physical_page_addr, vaddr_t v_addr){
+
+    KASSERT( physical_page_addr % PAGE_SIZE == 0);
+    // Refer PADDR_TO_KVADDR
+    uint32_t cmap_index = physical_page_addr / PAGE_SIZE;
+    uint32_t last_index;
+        
+    spinlock_acquire(&coremap_spinlock);
+    // Get the size of the chunk
+    size_t chunk_size = coremap[cmap_index].chunk_size;
+    // Check if we are freeing a valid chunk
+    KASSERT(chunk_size != 0);
+    
+    last_index = (cmap_index+chunk_size);
+    for(; cmap_index <last_index ; cmap_index ++){
+        set_cmap_free(&coremap[cmap_index],0);
+    }
+    spinlock_release(&coremap_spinlock);
+    // free_pages(addr);
     // TODO check if the page is mapped to any file
     // or basically see if it is a userspace page and 
     // based on that swap it to disk / unmap it.
     // TODO Also shootdown TLB entry if needed
 
-    free_pages(p_addr, v_addr);
-
-};
-
-paddr_t page_alloc(){
-    uint32_t i;
-    paddr_t p;
-    spinlock_acquire(&coremap_spinlock);
-    for( i = first_free_page; i < total_num_pages; i++){
-        if(coremap[i].is_free){
-            set_cmap_dirty(&coremap[i],1);
-            p = i * PAGE_SIZE;
-            bzero((void *)PADDR_TO_KVADDR(p), PAGE_SIZE);
-            break;
-        }
+    spinlock_acquire(&tlb_spinlock);
+    int spl = splhigh();
+    int tlb_index = tlb_probe(v_addr & PAGE_FRAME,0);
+    if(tlb_index >= 0){
+        // TLB fault
+        // splx(spl);
+        // panic("No tlb entry in page_free");
+        tlb_write(TLBHI_INVALID(tlb_index), TLBLO_INVALID(), tlb_index);
     }
-    spinlock_release(&coremap_spinlock);
-    if(i>=total_num_pages){
-        panic("No Page left");
-        return 0;
-    }
-    return p;
+    splx(spl);
+    spinlock_release(&tlb_spinlock);
+
 };
 
 
