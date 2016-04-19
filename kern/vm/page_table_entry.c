@@ -24,10 +24,11 @@ create_page_table_entry(vaddr_t vpn, paddr_t ppn){
 };
 
 struct page_table_entry
-*add_pte(struct addrspace *as, vaddr_t vpn, paddr_t ppn){
+*add_pte(struct addrspace *as, vaddr_t new_vaddr){
 
+    paddr_t new_paddr = page_alloc();
     if(as->pte_head == NULL){
-        as->pte_head = create_page_table_entry(vpn,ppn);
+        as->pte_head = create_page_table_entry(new_vaddr, new_paddr);
         return as->pte_head;
     }
     else{
@@ -35,7 +36,7 @@ struct page_table_entry
         while(pte_entry->next != NULL){
             pte_entry = pte_entry->next;
         }
-        pte_entry->next = create_page_table_entry(vpn,ppn);
+        pte_entry->next = create_page_table_entry(new_vaddr, new_paddr);
         return pte_entry->next;
     }
     
