@@ -207,6 +207,7 @@ as_define_region(struct addrspace *as, vaddr_t vaddr, size_t memsize,
 	memsize = (memsize + PAGE_SIZE - 1) & PAGE_FRAME;
 
 	int permission = readable | writeable | executable;
+
 	int result = create_region(as,vaddr,memsize,permission,permission);
 	if(result){
 		return result;

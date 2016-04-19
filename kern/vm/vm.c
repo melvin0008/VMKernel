@@ -32,6 +32,7 @@ static void set_cmap_entry(struct coremap_entry *cmap, bool is_fixed , bool is_f
 }
 
 static void set_cmap_fixed(struct coremap_entry *cmap , size_t chunk_size){
+    // KASSERT(chunk_size!=0);
     set_cmap_entry(cmap,true,false,false,false,chunk_size);
 }
 
@@ -40,6 +41,7 @@ static void set_cmap_free(struct coremap_entry *cmap , size_t chunk_size){
 }
 
 static void set_cmap_dirty(struct coremap_entry *cmap , size_t chunk_size){
+    // KASSERT(chunk_size!=0);
     set_cmap_entry(cmap,false,false,true,false,chunk_size);
 }
 
@@ -85,7 +87,8 @@ alloc_kpages(unsigned npages){
         spinlock_acquire(&coremap_spinlock);
         uint32_t start_page = 0;
         uint32_t j;
-        for(uint32_t i = first_free_page; i<total_num_pages; i++ ){
+        uint32_t i;
+        for(i = first_free_page; i<total_num_pages; i++ ){
             bool found_section = false;
             start_page = i;
             if( i+npages> total_num_pages){
@@ -110,6 +113,9 @@ alloc_kpages(unsigned npages){
                 set_cmap_fixed(&coremap[start_page],npages);
                 break;
             }
+        }
+        if(i>=total_num_pages){
+            panic("Should never get here");
         }
         for (uint32_t i = start_page+1; i < npages+start_page; i++){
             set_cmap_fixed(&coremap[i],0);
@@ -152,7 +158,7 @@ free_pages(paddr_t physical_page_addr){
     // Get the size of the chunk
     size_t chunk_size = coremap[cmap_index].chunk_size;
     // Check if we are freeing a valid chunk
-    // KASSERT(chunk_size != 0);
+    KASSERT(chunk_size != 0);
     
     last_index = (cmap_index+chunk_size);
     for(; cmap_index <last_index ; cmap_index ++){
@@ -179,7 +185,7 @@ paddr_t page_alloc(){
     paddr_t p;
     spinlock_acquire(&coremap_spinlock);
     for( i = first_free_page; i < total_num_pages; i++){
-        if(!coremap[i].is_fixed){
+        if(coremap[i].is_free){
             set_cmap_dirty(&coremap[i],1);
             p = i * PAGE_SIZE;
             bzero((void *)PADDR_TO_KVADDR(p), PAGE_SIZE);
@@ -188,6 +194,7 @@ paddr_t page_alloc(){
     }
     spinlock_release(&coremap_spinlock);
     if(i>=total_num_pages){
+        panic("No Page left");
         return 0;
     }
     return p;
@@ -253,20 +260,19 @@ vm_fault(int faulttype, vaddr_t faultaddress){
     }
 
     struct addrspace* as = proc_getas();    
+    if(as == NULL){
+        return EFAULT;
+    }
     // Check if the address is a valid userspace address
     struct addrspace_region *addr_region = get_region_for(as, faultaddress);
     struct page_table_entry *pte;
     bool is_stack_or_heap = is_addr_in_stack_or_heap(as, faultaddress);
     int permission, tlb_index, spl;
-    if(addr_region == NULL){
-        // Check if heap or stack
-        if(!is_stack_or_heap){
+    if(addr_region==NULL && !is_stack_or_heap){
             return EFAULT;
-        }
-        else{
-            // Since it is heap or stack
-            permission = PF_R | PF_W | PF_X;
-        }
+    }
+    if(addr_region == NULL){
+        permission = PF_R | PF_W;
     }
     else{
         permission = addr_region->permission;
@@ -290,12 +296,12 @@ vm_fault(int faulttype, vaddr_t faultaddress){
             // Add entry to tlb
             spinlock_acquire(&tlb_spinlock);
             spl = splhigh();
-            // tlb_index = tlb_probe(faultaddress,0);
-            // if(tlb_index >= 0){
-            //     // TLB fault
-            //     splx(spl);
-            //     panic("Duplicate tlb entry");
-            // }
+            tlb_index = tlb_probe(faultaddress,0);
+            if(tlb_index >= 0){
+                // TLB fault
+                splx(spl);
+                panic("Duplicate tlb entry");
+            }
             int random_entry_lo;
             random_entry_lo = pte->physical_page_number;
             random_entry_lo = random_entry_lo | ((pte->permission & PF_W) | 1) << 9;
