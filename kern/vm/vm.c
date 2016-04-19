@@ -152,7 +152,7 @@ free_pages(paddr_t physical_page_addr){
     // Get the size of the chunk
     size_t chunk_size = coremap[cmap_index].chunk_size;
     // Check if we are freeing a valid chunk
-    KASSERT(chunk_size != 0);
+    // KASSERT(chunk_size != 0);
     
     last_index = (cmap_index+chunk_size);
     for(; cmap_index <last_index ; cmap_index ++){
@@ -224,7 +224,7 @@ bool
 is_addr_in_stack_or_heap(struct addrspace *as, vaddr_t addr){
     if(
         (addr <= as->heap_end && addr >= as->heap_start) ||
-        (addr <= as->stack_end && addr >= USERSTACK)
+        (addr >= as->stack_end && addr <= USERSTACK)
         )
         return true;
     return false;
@@ -238,7 +238,7 @@ has_permission(int faulttype, struct page_table_entry *pte){
         }
     }
     else if (faulttype == VM_FAULT_WRITE || faulttype == VM_FAULT_READONLY){
-     if(pte->permission & PF_R && pte->permission & PF_W){
+     if((pte->permission & PF_R) && (pte->permission & PF_W)){
             return true;
         }   
     }
@@ -268,7 +268,7 @@ vm_fault(int faulttype, vaddr_t faultaddress){
         }
         else{
             // Since it is heap or stack
-            permission = PF_R | PF_W;
+            permission = PF_R | PF_W | PF_X;
         }
     }
     else{
@@ -301,7 +301,7 @@ vm_fault(int faulttype, vaddr_t faultaddress){
             // }
             int random_entry_lo;
             random_entry_lo = pte->physical_page_number;
-            random_entry_lo = random_entry_lo | ((pte->permission & PF_W) | (pte->permission & PF_R)) << 9;
+            random_entry_lo = random_entry_lo | ((pte->permission & PF_W) | 1) << 9;
             tlb_random((uint32_t) faultaddress, random_entry_lo);
             splx(spl);
             spinlock_release(&tlb_spinlock);

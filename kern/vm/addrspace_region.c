@@ -16,6 +16,7 @@ addrspace_region *copy_region(struct addrspace_region *old_region , int32_t *ret
         return NULL;
     }
     new_region->permission = old_region->permission;
+    new_region->orig_permission = old_region->orig_permission;
     new_region->size = old_region->size;
     new_region->start = old_region->start;
     new_region->next = copy_region(old_region->next,retval);
@@ -27,12 +28,13 @@ addrspace_region *copy_region(struct addrspace_region *old_region , int32_t *ret
 }
 
 int
-set_region_data(struct addrspace *as, vaddr_t vaddr, size_t memsize, int permission){
+create_region(struct addrspace *as, vaddr_t vaddr, size_t memsize, int permission, int orig_permission){
     struct addrspace_region *new_region = kmalloc(sizeof(struct addrspace_region));
     if(new_region == NULL){
         return ENOMEM;
     }
     new_region->permission = permission;
+    new_region->orig_permission = orig_permission;
     new_region->size = memsize;
     new_region->start = vaddr;
     new_region->next = NULL;
@@ -58,6 +60,7 @@ get_region_for(struct addrspace *as, vaddr_t faultaddress){
         if(faultaddress >= addr_region->start && faultaddress <= (addr_region->start + addr_region->size)){
             return addr_region;
         }
+        addr_region = addr_region->next;
     }
     return NULL;
 }

@@ -34,6 +34,7 @@
 #include <addrspace.h>
 #include <vm.h>
 #include <proc.h>
+#include <elf.h>
 
 /*
  * Note! If OPT_DUMBVM is set, as is the case until you start the VM
@@ -194,7 +195,7 @@ as_define_region(struct addrspace *as, vaddr_t vaddr, size_t memsize,
 	memsize = (memsize + PAGE_SIZE - 1) & PAGE_FRAME;
 
 	int permission = readable | writeable | executable;
-	int result = set_region_data(as,vaddr,memsize,permission);
+	int result = create_region(as,vaddr,memsize,permission,permission);
 	if(result){
 		return result;
 	}
@@ -217,7 +218,11 @@ as_prepare_load(struct addrspace *as)
 	 * Write this.
 	 */
 
-	(void)as;
+	struct addrspace_region *addr_region = as->region_head;
+	while(addr_region != NULL){
+		addr_region->permission = PF_W | PF_R;
+		addr_region = addr_region->next;
+	}
 	return 0;
 }
 
@@ -234,7 +239,11 @@ as_complete_load(struct addrspace *as)
 	 * Write this.
 	 */
 
-	(void)as;
+	struct addrspace_region *addr_region = as->region_head;
+	while(addr_region != NULL){
+		addr_region->permission = addr_region->orig_permission;
+		addr_region = addr_region->next;
+	}
 	return 0;
 }
 
