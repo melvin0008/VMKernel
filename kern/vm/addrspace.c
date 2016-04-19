@@ -150,18 +150,9 @@ as_activate(void)
 	/*
 	 * Write this.
 	 */
-	 int i, spl;
-
-	/* Disable interrupts on this CPU while frobbing the TLB. */
-	spl = splhigh();
-
-	for (i=0; i<NUM_TLB; i++) {
-		tlb_write(TLBHI_INVALID(i), TLBLO_INVALID(), i);
-	}
-
-	splx(spl);
-
 	// Call tlb_shootdown 
+	 vm_tlbshootdown_all();
+
 }
 
 void

@@ -265,7 +265,19 @@ coremap_used_bytes(void){
 
 void 
 vm_tlbshootdown_all(void){
+    int i, spl;
 
+    /* Disable interrupts on this CPU while frobbing the TLB. */
+    spinlock_acquire(&tlb_spinlock);
+    spl = splhigh();
+
+    for (i=0; i<NUM_TLB; i++) {
+        tlb_write(TLBHI_INVALID(i), TLBLO_INVALID(), i);
+    }
+
+    splx(spl);
+    spinlock_release(&tlb_spinlock);
+        
 };
 void
 vm_tlbshootdown(const struct tlbshootdown *tlb){
