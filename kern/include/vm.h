@@ -36,8 +36,10 @@
  * You'll probably want to add stuff here.
  */
 
+struct addrspace as;
 
 #include <machine/vm.h>
+#include <addrspace.h>
 #include <spinlock.h>
 
 /* Fault-type arguments to vm_fault() */
@@ -75,7 +77,8 @@ void free_kpages(vaddr_t addr);
 paddr_t page_alloc(void);
 void page_free(paddr_t addr);
 
-
+bool
+is_addr_in_stack_or_heap(struct addrspace *as, vaddr_t addr);
 
 /*
  * Return amount of memory (in bytes) used by allocated coremap pages.  If

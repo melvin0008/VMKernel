@@ -2,6 +2,7 @@
 
 #include <types.h>
 #include <lib.h>
+#include <elf.h>
 #include <spinlock.h>
 #include <vm.h>
 #include <kern/errno.h>
@@ -10,6 +11,7 @@
 #include <current.h>
 #include <spinlock.h>
 #include <cpu.h>
+#include <page_table_entry.h>
 
 static struct spinlock coremap_spinlock;
 static uint32_t total_num_pages;
@@ -67,28 +69,6 @@ init_coremap(){
 void
 vm_bootstrap(void){
     // Do nothing now
-};
-
-
-int
-vm_fault(int faulttype, vaddr_t faultaddress){
-    struct addrspace* as = proc_getas();    
-    // Check if the address is a valid userspace address
-    struct addrspace_region *addr_region = get_region_for(as, faultaddress);
-    if(addr_region == NULL){
-        return EFAULT;
-    }
-
-    switch(faulttype){
-        case VM_FAULT_READ:
-        case VM_FAULT_WRITE:
-        case VM_FAULT_READONLY:
-        break;
-        default:
-        return EFAULT;
-    }
-
-    return 0;
 };
 
 //Ref :
@@ -237,5 +217,61 @@ vm_tlbshootdown(const struct tlbshootdown *tlb){
     (void) tlb;
 };
 
+bool
+is_addr_in_stack_or_heap(struct addrspace *as, vaddr_t addr){
+    if(
+        (addr <= as->heap_end && addr >= as->heap_start) ||
+        (addr <= as->stack_end && addr >= USERSTACK)
+        )
+        return true;
+    return false;
+}
 
+int
+vm_fault(int faulttype, vaddr_t faultaddress){
+    faultaddress = faultaddress & PAGE_FRAME;
 
+    
+    struct addrspace* as = proc_getas();    
+    // Check if the address is a valid userspace address
+    struct addrspace_region *addr_region = get_region_for(as, faultaddress);
+    struct page_table_entry *pte;
+    bool is_stack_or_heap = is_addr_in_stack_or_heap(as, faultaddress);
+    int permission;
+    if(addr_region == NULL){
+        // Check if heap or stack
+        if(!is_stack_or_heap){
+            return EFAULT;
+        }
+        else{
+            // Since it is heap or stack
+            permission = PF_R | PF_W;
+        }
+    }
+    else{
+        permission = addr_region->permission;
+    }
+
+    switch(faulttype){
+        case VM_FAULT_READ:
+        case VM_FAULT_WRITE:
+            // 
+            pte = search_pte(as, faultaddress);
+            if(pte == NULL){
+                // Allocate a new page (handled in add_pte)
+                pte = add_pte(as, faultaddress, permission);
+            }
+            else{
+                // Check if user has proper permissions
+
+            }
+            // Add entry to tlb
+            break;
+        case VM_FAULT_READONLY:
+        break;
+        default:
+        return EFAULT;
+    }
+
+    return 0;
+};
