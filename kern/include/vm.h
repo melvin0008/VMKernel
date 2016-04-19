@@ -70,13 +70,13 @@ void vm_bootstrap(void);
 /* Fault handling function called by trap code */
 int vm_fault(int faulttype, vaddr_t faultaddress);
 
-void free_pages(paddr_t physical_page_addr);
+void free_pages(paddr_t physical_page_addr, vaddr_t v_addr);
 /* Allocate/free kernel heap pages (called by kmalloc/kfree) */
 vaddr_t alloc_kpages(unsigned npages);
 void free_kpages(vaddr_t addr);
 
 paddr_t page_alloc(void);
-void page_free(paddr_t addr);
+void page_free(paddr_t p_addr, vaddr_t v_addr);
 /*
  * Return amount of memory (in bytes) used by allocated coremap pages.  If
  * there are ongoing allocations, this value could change after it is returned

@@ -113,7 +113,7 @@ as_destroy(struct addrspace *as)
     struct page_table_entry* pte_entry = as->pte_head;
 	while(pte_entry != NULL){
 		next = pte_entry->next;
-		page_free(pte_entry->virtual_page_number);
+		page_free(pte_entry->physical_page_number, pte_entry->virtual_page_number);
 		kfree(pte_entry);
 		pte_entry = next;
     }

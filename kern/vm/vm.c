@@ -148,7 +148,7 @@ alloc_kpages(unsigned npages){
 };
 
 void
-free_pages(paddr_t physical_page_addr){
+free_pages(paddr_t physical_page_addr, vaddr_t v_addr){
     KASSERT( physical_page_addr % PAGE_SIZE == 0);
     // Refer PADDR_TO_KVADDR
     uint32_t cmap_index = physical_page_addr / PAGE_SIZE;
@@ -165,19 +165,34 @@ free_pages(paddr_t physical_page_addr){
         set_cmap_free(&coremap[cmap_index],0);
     }
     spinlock_release(&coremap_spinlock);
+
+
+    spinlock_acquire(&tlb_spinlock);
+    int spl = splhigh();
+    int tlb_index = tlb_probe(v_addr & PAGE_FRAME,0);
+    if(tlb_index >= 0){
+        // TLB fault
+        // splx(spl);
+        // panic("No tlb entry in page_free");
+        tlb_write(TLBHI_INVALID(tlb_index), TLBLO_INVALID(), tlb_index);
+    }
+    splx(spl);
+    spinlock_release(&tlb_spinlock);
 };
 
 void
 free_kpages(vaddr_t addr){
-    free_pages(addr - MIPS_KSEG0);
+    free_pages(addr - MIPS_KSEG0, addr);
 };
 
-void page_free(paddr_t addr){
-    free_pages(addr);
+void page_free(paddr_t p_addr, vaddr_t v_addr){
     // TODO check if the page is mapped to any file
     // or basically see if it is a userspace page and 
     // based on that swap it to disk / unmap it.
     // TODO Also shootdown TLB entry if needed
+
+    free_pages(p_addr, v_addr);
+
 };
 
 paddr_t page_alloc(){
