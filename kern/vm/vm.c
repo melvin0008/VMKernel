@@ -11,7 +11,6 @@
 #include <current.h>
 #include <spinlock.h>
 #include <cpu.h>
-#include <page_table_entry.h>
 
 static struct spinlock coremap_spinlock;
 static uint32_t total_num_pages;
@@ -230,12 +229,12 @@ is_addr_in_stack_or_heap(struct addrspace *as, vaddr_t addr){
 bool
 has_permission(int faulttype, struct page_table_entry *pte){
     if(faulttype == VM_FAULT_READ){
-        if(pte->permissions & PF_R){
+        if(pte->permission & PF_R){
             return true;
         }
     }
     else if (faulttype == VM_FAULT_WRITE){
-     if(pte->permissions & PF_R && pte->permissions & PF_W){
+     if(pte->permission & PF_R && pte->permission & PF_W){
             return true;
         }   
     }
