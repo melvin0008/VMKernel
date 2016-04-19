@@ -24,7 +24,6 @@ create_page_table_entry(vaddr_t vpn, paddr_t ppn, int permission){
 
 struct page_table_entry
 *add_pte(struct addrspace *as, vaddr_t new_vaddr, int permission){
-
     paddr_t new_paddr = page_alloc();
     if(as->pte_head == NULL){
         as->pte_head = create_page_table_entry(new_vaddr, new_paddr, permission);
@@ -38,7 +37,6 @@ struct page_table_entry
         pte_entry->next = create_page_table_entry(new_vaddr, new_paddr, permission);
         return pte_entry->next;
     }
-    
 }
 
 void destroy_page_table_entry(struct page_table_entry *pte){

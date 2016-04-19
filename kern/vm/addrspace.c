@@ -35,6 +35,8 @@
 #include <vm.h>
 #include <proc.h>
 #include <elf.h>
+#include <machine/tlb.h>
+#include <spl.h>
 
 /*
  * Note! If OPT_DUMBVM is set, as is the case until you start the VM
@@ -141,6 +143,16 @@ as_activate(void)
 	/*
 	 * Write this.
 	 */
+	 int i, spl;
+
+	/* Disable interrupts on this CPU while frobbing the TLB. */
+	spl = splhigh();
+
+	for (i=0; i<NUM_TLB; i++) {
+		tlb_write(TLBHI_INVALID(i), TLBLO_INVALID(), i);
+	}
+
+	splx(spl);
 
 	// Call tlb_shootdown 
 }

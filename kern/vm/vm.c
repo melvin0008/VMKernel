@@ -220,17 +220,14 @@ vm_tlbshootdown(const struct tlbshootdown *tlb){
     (void) tlb;
 };
 
-bool
+static bool
 is_addr_in_stack_or_heap(struct addrspace *as, vaddr_t addr){
-    if(
-        (addr <= as->heap_end && addr >= as->heap_start) ||
-        (addr >= as->stack_end && addr <= USERSTACK)
-        )
+    if(addr >= as->heap_start && addr <= USERSTACK)
         return true;
     return false;
 }
 
-bool
+static bool
 has_permission(int faulttype, struct page_table_entry *pte){
     if(faulttype == VM_FAULT_READ){
         if(pte->permission & PF_R){
@@ -238,7 +235,7 @@ has_permission(int faulttype, struct page_table_entry *pte){
         }
     }
     else if (faulttype == VM_FAULT_WRITE || faulttype == VM_FAULT_READONLY){
-     if((pte->permission & PF_R) && (pte->permission & PF_W)){
+     if(pte->permission & PF_W){
             return true;
         }   
     }
