@@ -109,13 +109,20 @@ as_destroy(struct addrspace *as)
 	/*
 	 * Clean up as needed.
 	 */
-    struct page_table_entry* next;
-    struct page_table_entry* pte_entry = as->pte_head;
+    struct page_table_entry *next;
+    struct page_table_entry *pte_entry = as->pte_head;
 	while(pte_entry != NULL){
 		next = pte_entry->next;
-		page_free(pte_entry->virtual_page_number);
+		page_free(pte_entry->physical_page_number);
 		kfree(pte_entry);
 		pte_entry = next;
+    }
+    struct addrspace_region *next_region;
+    struct addrspace_region *region_head = as->region_head;
+	while(region_head != NULL){
+		next_region = region_head->next;
+		kfree(region_head);
+		region_head = next_region;
     }
 	kfree(as);
 }
