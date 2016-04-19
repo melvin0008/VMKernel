@@ -227,11 +227,26 @@ is_addr_in_stack_or_heap(struct addrspace *as, vaddr_t addr){
     return false;
 }
 
+bool
+has_permission(int faulttype, struct page_table_entry *pte){
+    if(faulttype == VM_FAULT_READ){
+        if(pte->permissions & PF_R){
+            return true;
+        }
+    }
+    else if (faulttype == VM_FAULT_WRITE){
+     if(pte->permissions & PF_R && pte->permissions & PF_W){
+            return true;
+        }   
+    }
+    return false;
+}
+
 int
 vm_fault(int faulttype, vaddr_t faultaddress){
     faultaddress = faultaddress & PAGE_FRAME;
 
-    
+
     struct addrspace* as = proc_getas();    
     // Check if the address is a valid userspace address
     struct addrspace_region *addr_region = get_region_for(as, faultaddress);
@@ -263,9 +278,12 @@ vm_fault(int faulttype, vaddr_t faultaddress){
             }
             else{
                 // Check if user has proper permissions
-
+                if(!has_permission(faulttype,pte)){
+                    return EFAULT;
+                }
             }
             // Add entry to tlb
+            // DUMBVM ??
             break;
         case VM_FAULT_READONLY:
         break;

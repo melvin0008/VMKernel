@@ -3,7 +3,6 @@
 #include <lib.h>
 #include <addrspace.h>
 #include <vm.h> 
-#include <page_table_entry.h>
 
 // Create and init
 struct page_table_entry*

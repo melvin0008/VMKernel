@@ -39,6 +39,7 @@
 struct addrspace as;
 
 #include <machine/vm.h>
+#include <page_table_entry.h>
 #include <addrspace.h>
 #include <spinlock.h>
 
@@ -79,6 +80,9 @@ void page_free(paddr_t addr);
 
 bool
 is_addr_in_stack_or_heap(struct addrspace *as, vaddr_t addr);
+
+bool
+has_permission(int faulttype, struct page_table_entry *pte);
 
 /*
  * Return amount of memory (in bytes) used by allocated coremap pages.  If

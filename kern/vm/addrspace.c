@@ -34,7 +34,6 @@
 #include <addrspace.h>
 #include <vm.h>
 #include <proc.h>
-#include <page_table_entry.h>
 
 /*
  * Note! If OPT_DUMBVM is set, as is the case until you start the VM
