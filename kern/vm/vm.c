@@ -11,8 +11,11 @@
 #include <current.h>
 #include <spinlock.h>
 #include <cpu.h>
+#include <spl.h>
+#include <machine/tlb.h>
 
 static struct spinlock coremap_spinlock;
+static struct spinlock tlb_spinlock;
 static uint32_t total_num_pages;
 static paddr_t free_address;
 static uint32_t first_free_page;
@@ -53,6 +56,7 @@ init_coremap(){
     uint32_t index ;
     total_num_pages = last_address/ PAGE_SIZE;
     spinlock_init(&coremap_spinlock);
+    spinlock_init(&tlb_spinlock);
     coremap = (struct coremap_entry*) PADDR_TO_KVADDR(first_address);
     free_address = first_address + total_num_pages * (sizeof(struct coremap_entry));
     first_free_page = free_address / PAGE_SIZE + 1;
@@ -233,25 +237,30 @@ has_permission(int faulttype, struct page_table_entry *pte){
             return true;
         }
     }
-    else if (faulttype == VM_FAULT_WRITE){
+    else if (faulttype == VM_FAULT_WRITE || faulttype == VM_FAULT_READONLY){
      if(pte->permission & PF_R && pte->permission & PF_W){
             return true;
         }   
     }
+
+    panic("ACCESS VIOLATION");
     return false;
 }
 
 int
 vm_fault(int faulttype, vaddr_t faultaddress){
-    faultaddress = faultaddress & PAGE_FRAME;
+    faultaddress &= PAGE_FRAME;
 
+    if (curproc == NULL) {
+        return EFAULT;
+    }
 
     struct addrspace* as = proc_getas();    
     // Check if the address is a valid userspace address
     struct addrspace_region *addr_region = get_region_for(as, faultaddress);
     struct page_table_entry *pte;
     bool is_stack_or_heap = is_addr_in_stack_or_heap(as, faultaddress);
-    int permission;
+    int permission, tlb_index, spl;
     if(addr_region == NULL){
         // Check if heap or stack
         if(!is_stack_or_heap){
@@ -266,25 +275,59 @@ vm_fault(int faulttype, vaddr_t faultaddress){
         permission = addr_region->permission;
     }
 
+    pte = search_pte(as, faultaddress);
     switch(faulttype){
         case VM_FAULT_READ:
         case VM_FAULT_WRITE:
             // 
-            pte = search_pte(as, faultaddress);
             if(pte == NULL){
                 // Allocate a new page (handled in add_pte)
                 pte = add_pte(as, faultaddress, permission);
             }
             else{
-                // Check if user has proper permissions
+                // Check if user has proper permission
                 if(!has_permission(faulttype,pte)){
                     return EFAULT;
                 }
             }
             // Add entry to tlb
-            // DUMBVM ??
+            spinlock_acquire(&tlb_spinlock);
+            spl = splhigh();
+            // tlb_index = tlb_probe(faultaddress,0);
+            // if(tlb_index >= 0){
+            //     // TLB fault
+            //     splx(spl);
+            //     panic("Duplicate tlb entry");
+            // }
+            int random_entry_lo;
+            random_entry_lo = pte->physical_page_number;
+            random_entry_lo = random_entry_lo | ((pte->permission & PF_W) | (pte->permission & PF_R)) << 9;
+            tlb_random((uint32_t) faultaddress, random_entry_lo);
+            splx(spl);
+            spinlock_release(&tlb_spinlock);
+            // Now we know that there is an entry in the TLB
             break;
         case VM_FAULT_READONLY:
+            if(pte == NULL){
+                panic("NO entry in page_table");
+            }
+            if(!has_permission(faulttype,pte)){
+                    return EFAULT;
+                }
+            spinlock_acquire(&tlb_spinlock);
+            spl = splhigh();
+            tlb_index = tlb_probe(faultaddress,0);
+            if(tlb_index < 0){
+                // TLB fault
+                splx(spl);
+                panic("No tlb entry");
+            }
+            uint32_t entry_hi, entry_lo;
+            tlb_read(&entry_hi, &entry_lo, tlb_index);
+            entry_lo |= TLBLO_DIRTY;
+            tlb_write(entry_hi, entry_lo, tlb_index);
+            splx(spl);
+            spinlock_release(&tlb_spinlock);
         break;
         default:
         return EFAULT;
