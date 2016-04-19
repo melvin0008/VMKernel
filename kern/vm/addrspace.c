@@ -55,14 +55,11 @@ as_create(void)
 	/*
 	 * Initialize as needed.
 	 */
-
-
-	// Should call as_define_stack ??? 
 	as->stack_end  = USERSTACK;
     as->heap_start = 0;
     as->heap_end = 0;
     as->region_head = NULL;
-    as->pte_head = NULL;
+    as->pte_head =  NULL;
 	return as;
 }
 
