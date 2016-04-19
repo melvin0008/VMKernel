@@ -73,14 +73,14 @@ page_table_entry *copy_pt(struct page_table_entry *old_pte , int32_t *retval){
         return NULL;
     }
     new_pte->virtual_page_number = old_pte->virtual_page_number;
-    vaddr_t temp_vaddr = page_alloc();
-    if(temp_vaddr == 0){
+    paddr_t temp_paddr = page_alloc();
+    if(temp_paddr == 0){
         *retval = ENOMEM; //TODO:Change this
         return NULL;
     }
 
-    memmove((void *) temp_vaddr, (void *)PADDR_TO_KVADDR(old_pte->physical_page_number),PAGE_SIZE);
-    new_pte->physical_page_number = vaddr - MIPS_KSEG0;
+    memmove((void *) PADDR_TO_KVADDR(temp_paddr),(void *)PADDR_TO_KVADDR(old_pte->physical_page_number),PAGE_SIZE);
+    new_pte->physical_page_number = temp_paddr;
     new_pte->permission = old_pte->permission;
     new_pte->state = old_pte->state;
     new_pte->referenced = old_pte->referenced;
