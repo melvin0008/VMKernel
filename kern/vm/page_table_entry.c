@@ -7,7 +7,7 @@
 
 // Create and init
 struct page_table_entry*
-create_page_table_entry(vaddr_t vpn, paddr_t ppn){
+create_page_table_entry(vaddr_t vpn, paddr_t ppn, int permission){
 
     struct page_table_entry *pte = kmalloc(sizeof(struct page_table_entry));
     if (pte == NULL) {
@@ -15,7 +15,7 @@ create_page_table_entry(vaddr_t vpn, paddr_t ppn){
     };
     pte->virtual_page_number = vpn;
     pte->physical_page_number = ppn;
-    pte->permission = 0;
+    pte->permission = permission;
     pte->state = false;
     pte->valid = false;
     pte->referenced = false;
@@ -24,11 +24,11 @@ create_page_table_entry(vaddr_t vpn, paddr_t ppn){
 };
 
 struct page_table_entry
-*add_pte(struct addrspace *as, vaddr_t new_vaddr){
+*add_pte(struct addrspace *as, vaddr_t new_vaddr, int permission){
 
     paddr_t new_paddr = page_alloc();
     if(as->pte_head == NULL){
-        as->pte_head = create_page_table_entry(new_vaddr, new_paddr);
+        as->pte_head = create_page_table_entry(new_vaddr, new_paddr, permission);
         return as->pte_head;
     }
     else{
@@ -36,7 +36,7 @@ struct page_table_entry
         while(pte_entry->next != NULL){
             pte_entry = pte_entry->next;
         }
-        pte_entry->next = create_page_table_entry(new_vaddr, new_paddr);
+        pte_entry->next = create_page_table_entry(new_vaddr, new_paddr, permission);
         return pte_entry->next;
     }
     
@@ -72,6 +72,7 @@ page_table_entry *copy_pt(struct page_table_entry *old_pte , int32_t *retval){
         *retval = ENOMEM;
         return NULL;
     }
+    // TODO Use add_pte if possible !
     new_pte->virtual_page_number = old_pte->virtual_page_number;
     new_pte->physical_page_number = old_pte->physical_page_number;
     new_pte->permission = old_pte->permission;
