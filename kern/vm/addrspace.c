@@ -44,6 +44,7 @@
  * used. The cheesy hack versions in dumbvm.c are used instead.
  */
 
+/// Reference : http://jhshi.me/2012/04/24/os161-user-address-space/index.html
 
 struct addrspace *
 as_create(void)

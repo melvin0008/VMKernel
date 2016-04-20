@@ -96,7 +96,7 @@ alloc_kpages(unsigned npages){
                 return 0;
             }
             for( j = start_page; j < start_page+npages; j++ ){
-                if(!coremap[j].is_fixed){
+                if(coremap[j].is_free){
                     found_section = true;
                     // i++;
                 }
@@ -130,7 +130,7 @@ alloc_kpages(unsigned npages){
         uint32_t i;
         spinlock_acquire(&coremap_spinlock);
         for( i = first_free_page; i < total_num_pages; i++){
-            if(!coremap[i].is_fixed){
+            if(coremap[i].is_free){
                 set_cmap_fixed(&coremap[i],1);
                 p = i * PAGE_SIZE;
                 bzero((void *)PADDR_TO_KVADDR(p), PAGE_SIZE);
@@ -307,6 +307,8 @@ has_permission(int faulttype, struct page_table_entry *pte){
     panic("ACCESS VIOLATION");
     return false;
 }
+
+/// Reference http://jhshi.me/2012/04/27/os161-tlb-miss-and-page-fault/index.html
 
 int
 vm_fault(int faulttype, vaddr_t faultaddress){
