@@ -330,3 +330,30 @@ sys_execv(const char *program_name, char **args){
     panic("enter_new_process returned\n");
     return EINVAL;
 }
+
+/// Reference : http://jhshi.me/2012/04/27/os161-sbrk-system-call/index.html
+int
+sys_sbrk(int32_t increment, vaddr_t *retval){
+    increment += (increment % 4);
+    // (void) retval;
+    struct addrspace *as = proc_getas();
+
+    if(as->heap_end + increment < as->heap_start){
+        retval = (void *) -1;
+        return EINVAL;
+    }
+    if(as->heap_end + increment > as->stack_end){
+        retval = (void *) -1;
+        return ENOMEM;
+    }
+
+
+    // kprintf("increment is %d \n", increment);
+    // if(increment < 0){
+    //     // Free pages
+
+    // }
+    *retval = as->heap_end;
+    as->heap_end = as->heap_end + increment;
+    return 0;    
+}

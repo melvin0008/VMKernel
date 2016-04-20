@@ -191,13 +191,16 @@ free_pages(paddr_t physical_page_addr, vaddr_t v_addr){
 
     spinlock_acquire(&tlb_spinlock);
     int spl = splhigh();
-    int tlb_index = tlb_probe(v_addr & PAGE_FRAME,0);
-    if(tlb_index >= 0){
-        // TLB fault
-        // splx(spl);
-        // panic("No tlb entry in page_free");
-        tlb_write(TLBHI_INVALID(tlb_index), TLBLO_INVALID(), tlb_index);
-    }
+    // for (cmap_index= physical_page_addr / PAGE_SIZE; cmap_index < last_index ; cmap_index ++){
+    //     v_addr = PADDR_TO_KVADDR(cmap_index*PAGE_SIZE); 
+        int tlb_index = tlb_probe(v_addr & PAGE_FRAME,0);
+        if(tlb_index >= 0){
+            // TLB fault
+            // splx(spl);
+            // panic("No tlb entry in page_free");
+            tlb_write(TLBHI_INVALID(tlb_index), TLBLO_INVALID(), tlb_index);
+        }
+    // }
     splx(spl);
     spinlock_release(&tlb_spinlock);
 };

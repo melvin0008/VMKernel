@@ -88,6 +88,7 @@ syscall(struct trapframe *tf)
 	size_t temp_retval2;
 	off_t temp_retval3;
 	pid_t temp_retval4;
+	vaddr_t temp_retval5;
 	off_t sys_pos;
 
 
@@ -186,7 +187,10 @@ syscall(struct trapframe *tf)
 		// retval = (int32_t)temp_retval4;
 		break;
 
-
+		case SYS_sbrk:
+		err = sys_sbrk(tf->tf_a0, &temp_retval5);
+		retval = temp_retval5;
+		break;
 	    /* Add stuff here */
 
 	    default:
