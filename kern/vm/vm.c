@@ -162,8 +162,8 @@ paddr_t page_alloc(){
     }
     spinlock_release(&coremap_spinlock);
     if(i>=total_num_pages){
-        panic("No Page left");
-        return 0;
+        // panic("No Page left");
+        // return 0;
     }
     return p;
 };
@@ -289,8 +289,8 @@ vm_tlbshootdown(const struct tlbshootdown *tlb){
 
 static bool
 is_addr_in_stack_or_heap(struct addrspace *as, vaddr_t addr){
-    if((addr >= as->heap_start && addr <= as->heap_end) ||
-        (addr >= as->heap_end && addr <= USERSTACK))
+    if((addr >= as->heap_start && addr < as->heap_end) ||
+        (addr >= as->stack_end&& addr < USERSTACK))
         return true;
     return false;
 }
@@ -316,6 +316,7 @@ has_permission(int faulttype, struct page_table_entry *pte){
 
 int
 vm_fault(int faulttype, vaddr_t faultaddress){
+
     faultaddress &= PAGE_FRAME;
 
     if (curproc == NULL) {
@@ -374,20 +375,14 @@ vm_fault(int faulttype, vaddr_t faultaddress){
             // Now we know that there is an entry in the TLB
             break;
         case VM_FAULT_READONLY:
-            if(pte == NULL){
-                panic("NO entry in page_table");
-            }
+            KASSERT(pte!=NULL);
             if(!has_permission(faulttype,pte)){
                     return EFAULT;
                 }
             spinlock_acquire(&tlb_spinlock);
             spl = splhigh();
             tlb_index = tlb_probe(faultaddress,0);
-            if(tlb_index < 0){
-                // TLB fault
-                splx(spl);
-                panic("No tlb entry");
-            }
+            KASSERT(tlb_index>=0);
             uint32_t entry_hi, entry_lo;
             tlb_read(&entry_hi, &entry_lo, tlb_index);
             entry_lo |= TLBLO_DIRTY;
