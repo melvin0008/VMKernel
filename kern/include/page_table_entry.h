@@ -18,3 +18,5 @@ void destroy_page_table_entry(struct page_table_entry*);
 struct page_table_entry *copy_pt(struct page_table_entry *,int32_t *);
 struct page_table_entry *add_pte(struct addrspace *as, vaddr_t new_vaddr, int permission);
 struct page_table_entry *search_pte(struct addrspace *as, vaddr_t va);
+bool remove_pte_for(struct addrspace *as, vaddr_t va);
+void destroy_pte_for(struct addrspace *as);

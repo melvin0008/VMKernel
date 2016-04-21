@@ -335,6 +335,10 @@ sys_execv(const char *program_name, char **args){
 int
 sys_sbrk(int32_t increment, vaddr_t *retval){
     increment += (increment % 4);
+
+    if(increment <= -(1024*4096)){
+        return EINVAL;
+    }
     // (void) retval;
     struct addrspace *as = proc_getas();
 
@@ -346,13 +350,16 @@ sys_sbrk(int32_t increment, vaddr_t *retval){
         retval = (void *) -1;
         return ENOMEM;
     }
-
-
     // kprintf("increment is %d \n", increment);
-    // if(increment < 0){
-    //     // Free pages
+    if(increment < 0){
+        vaddr_t hi_addr = as->heap_end;
+        vaddr_t low_addr = as->heap_end + increment;
+        vaddr_t i;
+        for(i = low_addr; i <= hi_addr; i+= PAGE_SIZE){
+            remove_pte_for(as, i);
+        }
 
-    // }
+    }
     *retval = as->heap_end;
     as->heap_end = as->heap_end + increment;
     return 0;    

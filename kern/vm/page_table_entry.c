@@ -89,3 +89,46 @@ page_table_entry *copy_pt(struct page_table_entry *old_pte , int32_t *retval){
     *retval = 0;
     return new_pte;
 }
+
+bool
+remove_pte_for(struct addrspace *as, vaddr_t va){
+    struct page_table_entry *pte_entry = as->pte_head;
+    struct page_table_entry *prev = pte_entry;
+    vaddr_t vpn = va & PAGE_FRAME;
+
+    if(pte_entry != NULL && pte_entry->next == NULL && vpn == pte_entry->virtual_page_number){
+        page_free(pte_entry->physical_page_number, pte_entry->virtual_page_number);
+        kfree(pte_entry);
+        as->pte_head = NULL;
+    }
+
+    while(pte_entry != NULL){
+        if(vpn == pte_entry->virtual_page_number){
+            break;
+        }
+        prev = pte_entry;
+        pte_entry = pte_entry->next;
+    }
+
+    if(pte_entry != NULL){
+        prev->next = pte_entry->next;
+        pte_entry->next = NULL;
+        page_free(pte_entry->physical_page_number, pte_entry->virtual_page_number);
+        kfree(pte_entry);
+        return true;
+    }
+
+    return false;
+}
+
+void
+destroy_pte_for(struct addrspace *as){
+    struct page_table_entry *next;
+    while(as->pte_head != NULL){
+        next = as->pte_head->next;
+        as->pte_head->next = NULL;
+        page_free(as->pte_head->physical_page_number, as->pte_head->virtual_page_number);
+        kfree(as->pte_head);
+        as->pte_head = next;
+    }
+}

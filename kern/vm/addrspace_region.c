@@ -66,3 +66,14 @@ get_region_for(struct addrspace *as, vaddr_t faultaddress){
     }
     return NULL;
 }
+
+void
+destroy_regions_for(struct addrspace *as){
+    struct addrspace_region *next;
+    while(as->region_head != NULL){
+        next = as->region_head->next;
+        as->region_head->next = NULL;
+        kfree(as->region_head);
+        as->region_head = next;
+    }
+}

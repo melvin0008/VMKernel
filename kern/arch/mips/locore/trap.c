@@ -278,7 +278,6 @@ mips_trap(struct trapframe *tf)
 	 * one of the other exceptions, like illegal instruction, or
 	 * it was a page fault we couldn't handle.
 	 */
-
 	if (!iskern) {
 		/*
 		 * Fatal fault in user mode.

@@ -215,7 +215,7 @@ void page_free(paddr_t physical_page_addr, vaddr_t v_addr){
     KASSERT( physical_page_addr % PAGE_SIZE == 0);
     // Refer PADDR_TO_KVADDR
     uint32_t cmap_index = physical_page_addr / PAGE_SIZE;
-    uint32_t last_index;
+    // uint32_t last_index;
         
     spinlock_acquire(&coremap_spinlock);
     // Get the size of the chunk
@@ -223,10 +223,10 @@ void page_free(paddr_t physical_page_addr, vaddr_t v_addr){
     // Check if we are freeing a valid chunk
     KASSERT(chunk_size != 0);
     
-    last_index = (cmap_index+chunk_size);
-    for(; cmap_index <last_index ; cmap_index ++){
+    // last_index = (cmap_index+chunk_size);
+    // for(; cmap_index <last_index ; cmap_index ++){
         set_cmap_free(&coremap[cmap_index],0);
-    }
+    // }
     spinlock_release(&coremap_spinlock);
     // free_pages(addr);
     // TODO check if the page is mapped to any file
@@ -289,7 +289,8 @@ vm_tlbshootdown(const struct tlbshootdown *tlb){
 
 static bool
 is_addr_in_stack_or_heap(struct addrspace *as, vaddr_t addr){
-    if(addr >= as->heap_start && addr <= USERSTACK)
+    if((addr >= as->heap_start && addr <= as->heap_end) ||
+        (addr >= as->heap_end && addr <= USERSTACK))
         return true;
     return false;
 }
