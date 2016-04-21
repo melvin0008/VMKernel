@@ -5,8 +5,8 @@
 struct addrspace;
 
 struct addrspace_region {
-  int permission;
-  int orig_permission;
+  int permission:3;
+  int orig_permission:3;
   size_t size;
   vaddr_t start;
   struct addrspace_region *next;

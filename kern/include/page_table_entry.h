@@ -6,7 +6,7 @@
 struct page_table_entry{
     vaddr_t virtual_page_number;
     paddr_t physical_page_number;
-    int permission;
+    int permission:3;
     bool state:1;
     bool valid:1;
     bool referenced:1;

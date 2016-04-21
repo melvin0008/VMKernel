@@ -199,10 +199,12 @@ sys_execv(const char *program_name, char **args){
     char* kernel_program_name = (char*) kmalloc(NAME_MAX);
     err = copyinstr((const_userptr_t) program_name, kernel_program_name, NAME_MAX, &actual);
     if (err){ 
+        kfree(kernel_program_name);
         return err; 
     } 
     int i;
     if(strlen(kernel_program_name)==0){
+        kfree(kernel_program_name);
         return EINVAL;
     }
     // int prog_length = strlen(kernel_program_name) + 1;
@@ -210,23 +212,28 @@ sys_execv(const char *program_name, char **args){
     //Check for validations and copy name in kernel space
     struct addrspace *parent_addrspace = curproc->p_addrspace;
     if(args==NULL  || (args== INVAL_PTR) || (args  == KERN_PTR)){
+        kfree(kernel_program_name);
         return EFAULT;
     }
 
     int total = 0;
     for(i = 0; args[i] != NULL; i++){
         if( args[i]== INVAL_PTR ||  args[i]== KERN_PTR){
+            kfree(kernel_program_name);
             return EFAULT;
         }
         total++;
     }
     if(args==NULL || total==0 ){
+        kfree(kernel_program_name);
         return EFAULT;
     }
 
     char** corrected_args = (char **) kmalloc (sizeof(char*)*total);
     err = copyin((const_userptr_t) args, corrected_args,sizeof(char **));
     if(err){ 
+        kfree(kernel_program_name);
+        kfree(corrected_args);
         return err;
     } 
     int* kargv_length = (int*) kmalloc(sizeof(int)*total);
@@ -250,6 +257,7 @@ sys_execv(const char *program_name, char **args){
         corrected_args[k] = (char *) kmalloc(sizeof(char)*(len+padding));
         err = copyin((const_userptr_t) args[k],corrected_args[k],len);
         if(err){
+            free_exec_mem(corrected_args,kernel_program_name,kargv_length,total);
             return err;
         }
 
@@ -296,6 +304,7 @@ sys_execv(const char *program_name, char **args){
     result = as_define_stack(as, &stackptr);
     if (result) {
         /* p_addrspace will go away when curproc is destroyed */
+        free_exec_mem(corrected_args,kernel_program_name,kargv_length,total);
         return result;
     }
     int pointers_length = 4 * (total + 1);
@@ -305,6 +314,7 @@ sys_execv(const char *program_name, char **args){
     for(i=0;i <total;i++){
         err = copyout(*(corrected_args+i),(userptr_t)temp_offset1, *(kargv_length+i));
         if (err) {
+            free_exec_mem(corrected_args,kernel_program_name,kargv_length,total);
             return err;
         }    
         temp_offset1+=*(kargv_length+i);
@@ -336,7 +346,7 @@ int
 sys_sbrk(int32_t increment, vaddr_t *retval){
     increment += (increment % 4);
 
-    if(increment <= -(1024*4096)){
+    if(increment<=-(1024*4096)){
         return EINVAL;
     }
     // (void) retval;

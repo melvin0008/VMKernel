@@ -15,9 +15,8 @@
 #include <machine/tlb.h>
 
 static struct spinlock coremap_spinlock;
-static struct spinlock tlb_spinlock;
+// static struct spinlock tlb_spinlock;
 static uint32_t total_num_pages;
-static paddr_t free_address;
 static uint32_t first_free_page;
 
 static void set_cmap_entry(struct coremap_entry *cmap, bool is_fixed , bool is_free, bool is_dirty, bool is_clean , size_t chunk_size){
@@ -55,10 +54,11 @@ void
 init_coremap(){
     paddr_t last_address = ram_getsize();
     paddr_t first_address = ram_getfirstfree();
-    uint32_t index ;
+    uint32_t index;
+    paddr_t free_address;
     total_num_pages = last_address/ PAGE_SIZE;
     spinlock_init(&coremap_spinlock);
-    spinlock_init(&tlb_spinlock);
+    // spinlock_init(&tlb_spinlock);
     coremap = (struct coremap_entry*) PADDR_TO_KVADDR(first_address);
     free_address = first_address + total_num_pages * (sizeof(struct coremap_entry));
     first_free_page = free_address / PAGE_SIZE + 1;
@@ -189,7 +189,7 @@ free_pages(paddr_t physical_page_addr, vaddr_t v_addr){
     spinlock_release(&coremap_spinlock);
 
 
-    spinlock_acquire(&tlb_spinlock);
+    // spinlock_acquire(&tlb_spinlock);
     int spl = splhigh();
     // for (cmap_index= physical_page_addr / PAGE_SIZE; cmap_index < last_index ; cmap_index ++){
     //     v_addr = PADDR_TO_KVADDR(cmap_index*PAGE_SIZE); 
@@ -202,7 +202,7 @@ free_pages(paddr_t physical_page_addr, vaddr_t v_addr){
         }
     // }
     splx(spl);
-    spinlock_release(&tlb_spinlock);
+    // spinlock_release(&tlb_spinlock);
 };
 
 void
@@ -234,7 +234,7 @@ void page_free(paddr_t physical_page_addr, vaddr_t v_addr){
     // based on that swap it to disk / unmap it.
     // TODO Also shootdown TLB entry if needed
 
-    spinlock_acquire(&tlb_spinlock);
+    // spinlock_acquire(&tlb_spinlock);
     int spl = splhigh();
     int tlb_index = tlb_probe(v_addr & PAGE_FRAME,0);
     if(tlb_index >= 0){
@@ -244,7 +244,7 @@ void page_free(paddr_t physical_page_addr, vaddr_t v_addr){
         tlb_write(TLBHI_INVALID(tlb_index), TLBLO_INVALID(), tlb_index);
     }
     splx(spl);
-    spinlock_release(&tlb_spinlock);
+    // spinlock_release(&tlb_spinlock);
 
 };
 
@@ -256,13 +256,13 @@ coremap_used_bytes(void){
     unsigned int total_used_entries = 0, index;
     
     // TODO check if active waiting is costly
-    spinlock_acquire(&coremap_spinlock);
+    // spinlock_acquire(&coremap_spinlock);
     for(index = first_free_page ; index < total_num_pages; index += 1){
         if(!coremap[index].is_free){
             total_used_entries++;
         }
     }    
-    spinlock_release(&coremap_spinlock);
+    // spinlock_release(&coremap_spinlock);
     return total_used_entries * PAGE_SIZE ;
 };
 
@@ -271,7 +271,7 @@ vm_tlbshootdown_all(void){
     int i, spl;
 
     /* Disable interrupts on this CPU while frobbing the TLB. */
-    spinlock_acquire(&tlb_spinlock);
+    // spinlock_acquire(&tlb_spinlock);
     spl = splhigh();
 
     for (i=0; i<NUM_TLB; i++) {
@@ -279,7 +279,7 @@ vm_tlbshootdown_all(void){
     }
 
     splx(spl);
-    spinlock_release(&tlb_spinlock);
+    // spinlock_release(&tlb_spinlock);
         
 };
 void
@@ -357,7 +357,7 @@ vm_fault(int faulttype, vaddr_t faultaddress){
                 }
             }
             // Add entry to tlb
-            spinlock_acquire(&tlb_spinlock);
+            // spinlock_acquire(&tlb_spinlock);
             spl = splhigh();
             tlb_index = tlb_probe(faultaddress,0);
             if(tlb_index >= 0){
@@ -370,7 +370,7 @@ vm_fault(int faulttype, vaddr_t faultaddress){
             random_entry_lo = random_entry_lo | ((pte->permission & PF_W) | 1) << 9;
             tlb_random((uint32_t) faultaddress, random_entry_lo);
             splx(spl);
-            spinlock_release(&tlb_spinlock);
+            // spinlock_release(&tlb_spinlock);
             // Now we know that there is an entry in the TLB
             break;
         case VM_FAULT_READONLY:
@@ -380,7 +380,7 @@ vm_fault(int faulttype, vaddr_t faultaddress){
             if(!has_permission(faulttype,pte)){
                     return EFAULT;
                 }
-            spinlock_acquire(&tlb_spinlock);
+            // spinlock_acquire(&tlb_spinlock);
             spl = splhigh();
             tlb_index = tlb_probe(faultaddress,0);
             if(tlb_index < 0){
@@ -393,7 +393,7 @@ vm_fault(int faulttype, vaddr_t faultaddress){
             entry_lo |= TLBLO_DIRTY;
             tlb_write(entry_hi, entry_lo, tlb_index);
             splx(spl);
-            spinlock_release(&tlb_spinlock);
+            // spinlock_release(&tlb_spinlock);
         break;
         default:
         return EFAULT;
