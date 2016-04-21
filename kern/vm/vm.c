@@ -15,7 +15,7 @@
 #include <machine/tlb.h>
 
 static struct spinlock coremap_spinlock;
-// static struct spinlock tlb_spinlock;
+static struct spinlock tlb_spinlock;
 static uint32_t total_num_pages;
 static uint32_t first_free_page;
 
@@ -40,7 +40,6 @@ static void set_cmap_free(struct coremap_entry *cmap , size_t chunk_size){
 }
 
 static void set_cmap_dirty(struct coremap_entry *cmap , size_t chunk_size){
-    // KASSERT(chunk_size!=0);
     set_cmap_entry(cmap,false,false,true,false,chunk_size);
 }
 
@@ -58,7 +57,7 @@ init_coremap(){
     paddr_t free_address;
     total_num_pages = last_address/ PAGE_SIZE;
     spinlock_init(&coremap_spinlock);
-    // spinlock_init(&tlb_spinlock);
+    spinlock_init(&tlb_spinlock);
     coremap = (struct coremap_entry*) PADDR_TO_KVADDR(first_address);
     free_address = first_address + total_num_pages * (sizeof(struct coremap_entry));
     first_free_page = free_address / PAGE_SIZE + 1;
@@ -162,7 +161,7 @@ paddr_t page_alloc(){
     }
     spinlock_release(&coremap_spinlock);
     if(i>=total_num_pages){
-        panic("No Page left");
+        // panic("No Page left");
         return 0;
     }
     return p;
@@ -180,7 +179,7 @@ free_pages(paddr_t physical_page_addr, vaddr_t v_addr){
     // Get the size of the chunk
     size_t chunk_size = coremap[cmap_index].chunk_size;
     // Check if we are freeing a valid chunk
-    // KASSERT(chunk_size != 0);
+    KASSERT(chunk_size != 0);
     
     last_index = (cmap_index+chunk_size);
     for(; cmap_index <last_index ; cmap_index ++){
@@ -189,7 +188,7 @@ free_pages(paddr_t physical_page_addr, vaddr_t v_addr){
     spinlock_release(&coremap_spinlock);
 
 
-    // spinlock_acquire(&tlb_spinlock);
+    spinlock_acquire(&tlb_spinlock);
     int spl = splhigh();
     // for (cmap_index= physical_page_addr / PAGE_SIZE; cmap_index < last_index ; cmap_index ++){
     //     v_addr = PADDR_TO_KVADDR(cmap_index*PAGE_SIZE); 
@@ -202,7 +201,7 @@ free_pages(paddr_t physical_page_addr, vaddr_t v_addr){
         }
     // }
     splx(spl);
-    // spinlock_release(&tlb_spinlock);
+    spinlock_release(&tlb_spinlock);
 };
 
 void
@@ -234,7 +233,7 @@ void page_free(paddr_t physical_page_addr, vaddr_t v_addr){
     // based on that swap it to disk / unmap it.
     // TODO Also shootdown TLB entry if needed
 
-    // spinlock_acquire(&tlb_spinlock);
+    spinlock_acquire(&tlb_spinlock);
     int spl = splhigh();
     int tlb_index = tlb_probe(v_addr & PAGE_FRAME,0);
     if(tlb_index >= 0){
@@ -244,7 +243,7 @@ void page_free(paddr_t physical_page_addr, vaddr_t v_addr){
         tlb_write(TLBHI_INVALID(tlb_index), TLBLO_INVALID(), tlb_index);
     }
     splx(spl);
-    // spinlock_release(&tlb_spinlock);
+    spinlock_release(&tlb_spinlock);
 
 };
 
@@ -289,8 +288,8 @@ vm_tlbshootdown(const struct tlbshootdown *tlb){
 
 static bool
 is_addr_in_stack_or_heap(struct addrspace *as, vaddr_t addr){
-    if((addr >= as->heap_start && addr <= as->heap_end) ||
-        (addr >= as->heap_end && addr <= USERSTACK))
+    if((addr >= as->heap_start && addr < as->heap_end) ||
+        (addr >= as->stack_end&& addr < USERSTACK))
         return true;
     return false;
 }
@@ -316,6 +315,7 @@ has_permission(int faulttype, struct page_table_entry *pte){
 
 int
 vm_fault(int faulttype, vaddr_t faultaddress){
+
     faultaddress &= PAGE_FRAME;
 
     if (curproc == NULL) {
@@ -349,6 +349,9 @@ vm_fault(int faulttype, vaddr_t faultaddress){
             if(pte == NULL){
                 // Allocate a new page (handled in add_pte)
                 pte = add_pte(as, faultaddress, permission);
+                if(pte == NULL){
+                    return EFAULT;
+                }
             }
             else{
                 // Check if user has proper permission
@@ -357,7 +360,7 @@ vm_fault(int faulttype, vaddr_t faultaddress){
                 }
             }
             // Add entry to tlb
-            // spinlock_acquire(&tlb_spinlock);
+            spinlock_acquire(&tlb_spinlock);
             spl = splhigh();
             tlb_index = tlb_probe(faultaddress,0);
             if(tlb_index >= 0){
@@ -370,30 +373,24 @@ vm_fault(int faulttype, vaddr_t faultaddress){
             random_entry_lo = random_entry_lo | ((pte->permission & PF_W) | 1) << 9;
             tlb_random((uint32_t) faultaddress, random_entry_lo);
             splx(spl);
-            // spinlock_release(&tlb_spinlock);
+            spinlock_release(&tlb_spinlock);
             // Now we know that there is an entry in the TLB
             break;
         case VM_FAULT_READONLY:
-            if(pte == NULL){
-                panic("NO entry in page_table");
-            }
+            KASSERT(pte!=NULL);
             if(!has_permission(faulttype,pte)){
                     return EFAULT;
                 }
-            // spinlock_acquire(&tlb_spinlock);
+            spinlock_acquire(&tlb_spinlock);
             spl = splhigh();
             tlb_index = tlb_probe(faultaddress,0);
-            if(tlb_index < 0){
-                // TLB fault
-                splx(spl);
-                panic("No tlb entry");
-            }
+            KASSERT(tlb_index>=0);
             uint32_t entry_hi, entry_lo;
             tlb_read(&entry_hi, &entry_lo, tlb_index);
             entry_lo |= TLBLO_DIRTY;
             tlb_write(entry_hi, entry_lo, tlb_index);
             splx(spl);
-            // spinlock_release(&tlb_spinlock);
+            spinlock_release(&tlb_spinlock);
         break;
         default:
         return EFAULT;

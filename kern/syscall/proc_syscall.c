@@ -346,19 +346,19 @@ int
 sys_sbrk(int32_t increment, vaddr_t *retval){
     increment += (increment % 4);
 
-    if(increment<=-(1024*4096)){
+    if(increment <= -(1024*4096*256)){
         return EINVAL;
     }
     // (void) retval;
     struct addrspace *as = proc_getas();
 
+    if(as->heap_end + increment >= as->stack_end){
+        retval = (void *) -1;
+        return ENOMEM;
+    }
     if(as->heap_end + increment < as->heap_start){
         retval = (void *) -1;
         return EINVAL;
-    }
-    if(as->heap_end + increment > as->stack_end){
-        retval = (void *) -1;
-        return ENOMEM;
     }
     // kprintf("increment is %d \n", increment);
     if(increment < 0){
