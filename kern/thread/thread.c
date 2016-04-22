@@ -290,6 +290,7 @@ thread_destroy(struct thread *thread)
 			fhandle_destroy(thread->t_ftable[i]);
 		}
 	}
+
 	threadlistnode_cleanup(&thread->t_listnode);
 	
 
