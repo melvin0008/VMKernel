@@ -284,7 +284,7 @@ thread_destroy(struct thread *thread)
 	
 	for(int i = 0; i < OPEN_MAX; i += 1){
 		if(thread->t_ftable[i]!=NULL && thread->t_ftable[i]->ref_count == 1){
-			kfree(thread->t_ftable[i]);
+			fhandle_destroy(thread->t_ftable[i]);
 		}
 	}
 	threadlistnode_cleanup(&thread->t_listnode);

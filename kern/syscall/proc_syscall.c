@@ -362,6 +362,7 @@ sys_sbrk(int32_t increment, vaddr_t *retval){
     }
     // kprintf("increment is %d \n", increment);
     if(increment < 0){
+        // Remove all the addresses in between
         vaddr_t hi_addr = as->heap_end;
         vaddr_t low_addr = as->heap_end + increment;
         vaddr_t i;
