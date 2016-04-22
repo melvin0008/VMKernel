@@ -59,7 +59,8 @@ as_create(void)
 	/*
 	 * Initialize as needed.
 	 */
-	as->stack_end  = USERSTACK-1024*PAGE_SIZE;
+	// Support a 4M stack space
+	as->stack_end  = USERSTACK- (1024*PAGE_SIZE);
     as->heap_start = 0;
     as->heap_end = 0;
     as->region_head = NULL;
