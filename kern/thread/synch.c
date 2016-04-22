@@ -181,7 +181,7 @@ lock_destroy(struct lock *lock)
 
 	kfree(lock->lk_name);
 	kfree(lock);
-	lock=NULL;
+	// lock=NULL;
 }
 
 void

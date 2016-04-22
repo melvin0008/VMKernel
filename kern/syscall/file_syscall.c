@@ -88,11 +88,14 @@ sys_close(int fd)
     if(fh->ref_count==1){
         fh->ref_count--;
         vfs_close(fh->vn);
+        // vnode_cleanup(fh->vn);
         lock_release(fh->lk);
         fhandle_destroy(fh);
     }
     else{
         fh->ref_count--;
+        // vnode_decref(fh->vn);
+        // vfs_close(fh->vn);
         lock_release(fh->lk);
     }
     return 0;
@@ -117,7 +120,7 @@ sys_read(int fd, void *buf, size_t buflen, ssize_t *retval){
     struct iovec io_vec;
     int result;
     ssize_t byte_read_count = -1;
-
+    
     lock_acquire(fh->lk);
 
     if(((fh->permission_flags & O_RDONLY) == O_RDONLY ||
@@ -141,6 +144,7 @@ sys_read(int fd, void *buf, size_t buflen, ssize_t *retval){
         lock_release(fh->lk);
         return EBADF;
     }
+
     return 0;
 }
 

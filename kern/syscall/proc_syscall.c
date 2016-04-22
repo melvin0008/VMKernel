@@ -145,6 +145,7 @@ sys_fork(struct trapframe *parent_tf, pid_t *retval){
     child_proc->ppid=curproc->pid;
 
     *child_tf = *parent_tf;
+
     int err;
     // err=copyout((const void *)parent_tf, (userptr_t) child_tf,sizeof(struct trapframe));
     // if(err){
@@ -156,7 +157,7 @@ sys_fork(struct trapframe *parent_tf, pid_t *retval){
     }
     // as_activate(child_as);
     // pid_t child_thread_pid;
-    
+   
     err = thread_fork("child_proc", child_proc,(void *) child_forkentry, child_tf,(long unsigned int) NULL);
     if (err)
     {
@@ -178,7 +179,7 @@ static void free_exec_mem(char** corrected_args , char* kernel_program_name, int
     }
     kfree(corrected_args);
     kfree(kernel_program_name);
-    kfree((kargv_length));
+    kfree(kargv_length);
 }
 
 int
@@ -329,6 +330,7 @@ sys_execv(const char *program_name, char **args){
     }
     int temp = 0;
     copyout( &temp,(void *) temp_stackptr, 4);
+
     free_exec_mem(corrected_args,kernel_program_name,kargv_length,total);
     as_destroy(parent_addrspace);
     // kprintf()

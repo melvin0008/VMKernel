@@ -255,13 +255,13 @@ coremap_used_bytes(void){
     unsigned int total_used_entries = 0, index;
     
     // TODO check if active waiting is costly
-    // spinlock_acquire(&coremap_spinlock);
+    spinlock_acquire(&coremap_spinlock);
     for(index = first_free_page ; index < total_num_pages; index += 1){
         if(!coremap[index].is_free){
             total_used_entries++;
         }
     }    
-    // spinlock_release(&coremap_spinlock);
+    spinlock_release(&coremap_spinlock);
     return total_used_entries * PAGE_SIZE ;
 };
 

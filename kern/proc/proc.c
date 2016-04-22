@@ -49,7 +49,7 @@
 #include <addrspace.h>
 #include <vnode.h>
 #include <kern/errno.h>
-
+#include <vfs.h>
 /*
  * The process for the kernel; this holds all the kernel-only threads.
  */
@@ -152,7 +152,37 @@ proc_destroy(struct proc *proc)
 	 * reference to this structure. (Otherwise it would be
 	 * incorrect to destroy it.)
 	 */
+	  // if(proc->ref_thread!=NULL){
+   //      for(int i = 0; i < OPEN_MAX; i += 1){
+   //      	if(proc->ref_thread->t_ftable[i]!=NULL){
+	  //       	// lock_acquire(proc->ref_thread->t_ftable[i]->lk);
+	  //           if(proc->ref_thread->t_ftable[i]->ref_count == 1 ){
+	  //               // kprintf("Ref%d",curthread->t_ftable[i]->ref_count);
+	  //               // kfree(curthread->t_ftable[i]);
+	  //               proc->ref_thread->t_ftable[i]->ref_count--;
+	  //           // vnode_decref(proc->ref_thread->t_ftable[i]->vn);
 
+	  //               // vnode_cleanup(proc->ref_thread->t_ftable[i]->vn);
+	  //               vfs_close(proc->ref_thread->t_ftable[i]->vn);
+	  //         		// lock_release(proc->ref_thread->t_ftable[i]->lk);
+
+	  //               fhandle_destroy(proc->ref_thread->t_ftable[i]);
+	  //           }
+	  //           else{
+	                
+	  //            //    if(proc->ref_thread->t_ftable[i]->ref_count!=0){// vnode_decref(proc->ref_thread->t_ftable[i]->vn);
+		 //            //     proc->ref_thread->t_ftable[i]->ref_count--;
+		 //            // }
+	  //         		// vfs_close(proc->ref_thread->t_ftable[i]->vn);
+	  //         		if(proc->ref_thread->t_ftable[i]->ref_count!=0){
+	  //               proc->ref_thread->t_ftable[i]->ref_count--;
+	  //           		}
+	  //           	// lock_release(proc->ref_thread->t_ftable[i]->lk);
+	  //           }
+   //      	}
+   //      }
+
+     // }
 	/* VFS fields */
 	if (proc->p_cwd) {
 		VOP_DECREF(proc->p_cwd);
@@ -210,9 +240,9 @@ proc_destroy(struct proc *proc)
 	KASSERT(proc->p_numthreads == 0);
 
 	spinlock_cleanup(&proc->p_lock);
-	lock_destroy(proc->exit_lk);
-	cv_destroy(proc->exit_cv);
 	
+	cv_destroy(proc->exit_cv);
+	lock_destroy(proc->exit_lk);
 	kfree(proc->p_name);
 	kfree(proc);
 	proc_table[pid] = NULL; 

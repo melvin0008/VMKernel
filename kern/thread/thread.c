@@ -50,6 +50,8 @@
 #include <addrspace.h>
 #include <mainbus.h>
 #include <vnode.h>
+#include <vfs.h>
+
 
 
 /* Magic number used as a guard value on kernel thread stacks. */
@@ -278,17 +280,14 @@ thread_destroy(struct thread *thread)
 
 	/* Thread subsystem fields */
 	KASSERT(thread->t_proc == NULL);
+	
 	if (thread->t_stack != NULL) {
 		kfree(thread->t_stack);
 	}
 	
-	for(int i = 0; i < OPEN_MAX; i += 1){
-		if(thread->t_ftable[i]!=NULL && thread->t_ftable[i]->ref_count == 1){
-			kfree(thread->t_ftable[i]);
-		}
-	}
+	 
 	threadlistnode_cleanup(&thread->t_listnode);
-	thread_machdep_cleanup(&thread->t_machdep);
+	
 
 	/* sheer paranoia */
 	thread->t_wchan_name = "DESTROYED";
@@ -847,6 +846,25 @@ thread_exit(void)
 		spinlock_release(&thread_count_lock);
 	}
 
+	for(int i = 0; i < OPEN_MAX; i += 1){
+	  	if(cur->t_ftable[i]!=NULL){
+	  	lock_acquire(cur->t_ftable[i]->lk);
+	        if(cur->t_ftable[i]->ref_count == 1){
+	            cur->t_ftable[i]->ref_count--;
+	        	vfs_close(cur->t_ftable[i]->vn);
+	        	lock_release(cur->t_ftable[i]->lk);
+	            fhandle_destroy(cur->t_ftable[i]);
+	        }
+	    
+	        else{
+	        	if(cur->t_ftable[i]->ref_count!=0){// vnode_decref(proc->ref_cur->t_ftable[i]->vn);
+		                cur->t_ftable[i]->ref_count--;
+		            }
+	          lock_release(cur->t_ftable[i]->lk);
+		            
+	        }
+	    }
+    }
 	/* Interrupts off on this processor */
 	splhigh();
 	thread_switch(S_ZOMBIE, NULL, NULL);
