@@ -350,7 +350,7 @@ vm_fault(int faulttype, vaddr_t faultaddress){
                 // Allocate a new page (handled in add_pte)
                 pte = add_pte(as, faultaddress, permission);
                 if(pte == NULL){
-                    return EFAULT;
+                    return ENOMEM;
                 }
             }
             else{

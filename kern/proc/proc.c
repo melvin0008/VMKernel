@@ -87,12 +87,19 @@ proc_create(const char *name)
 	
 	proc->exit_lk = lock_create("proc_exit_lock");
 	if (proc->exit_lk == NULL) {
-		panic("proc_exit_thread: lock_create failed\n");
+		kfree(proc->p_name);
+		kfree(proc);
+		return NULL;
+		// panic("proc_exit_thread: lock_create failed\n");
 	}
 
 	proc->exit_cv = cv_create("proc_exit_cv");
 	if (proc->exit_cv == NULL) {
-		panic("proc_exit_thread: cv_create failed\n");
+		kfree(proc->p_name);
+		lock_destroy(proc->exit_lk);
+		kfree(proc);
+		return NULL;
+		// panic("proc_exit_thread: cv_create failed\n");
 	}
 
  	proc->ref_thread = curthread;
