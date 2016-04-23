@@ -76,7 +76,7 @@ page_table_entry *copy_pt(struct page_table_entry *old_pte , int32_t *retval){
     new_pte->virtual_page_number = old_pte->virtual_page_number;
     paddr_t temp_paddr = page_alloc();
     if(temp_paddr == 0){
-        *retval = ENOMEM; //TODO:Change this
+        *retval = EFAULT; //TODO:Change this
         return NULL;
     }
 
