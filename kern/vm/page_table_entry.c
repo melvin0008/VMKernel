@@ -24,7 +24,7 @@ create_page_table_entry(vaddr_t vpn, paddr_t ppn, int permission){
 
 struct page_table_entry
 *add_pte(struct addrspace *as, vaddr_t new_vaddr, int permission){
-    paddr_t new_paddr = page_alloc();
+    paddr_t new_paddr = page_alloc(as, new_vaddr);
     if(new_paddr == 0){
         return NULL;
     }
@@ -62,7 +62,7 @@ search_pte(struct addrspace *as, vaddr_t va){
 }
 
 struct
-page_table_entry *copy_pt(struct page_table_entry *old_pte , int32_t *retval){    
+page_table_entry *copy_pt(struct addrspace *newas, struct page_table_entry *old_pte , int32_t *retval){    
     if(old_pte == NULL){
         *retval = 0;
         return NULL;
@@ -74,7 +74,7 @@ page_table_entry *copy_pt(struct page_table_entry *old_pte , int32_t *retval){
     }
     // TODO Use add_pte if possible !
     new_pte->virtual_page_number = old_pte->virtual_page_number;
-    paddr_t temp_paddr = page_alloc();
+    paddr_t temp_paddr = page_alloc(newas, new_pte->virtual_page_number);
     if(temp_paddr == 0){
         *retval = ENOMEM; //TODO:Change this
         return NULL;
@@ -85,7 +85,7 @@ page_table_entry *copy_pt(struct page_table_entry *old_pte , int32_t *retval){
     new_pte->permission = old_pte->permission;
     new_pte->state = old_pte->state;
     new_pte->referenced = old_pte->referenced;
-    new_pte->next = copy_pt(old_pte->next,retval);
+    new_pte->next = copy_pt(newas, old_pte->next,retval);
     if(*retval!=0){
         return NULL;
     }

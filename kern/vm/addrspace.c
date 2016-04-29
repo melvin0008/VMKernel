@@ -95,7 +95,7 @@ as_copy(struct addrspace *old, struct addrspace **ret)
     if(retval_region != 0){
     	return ENOMEM;
     }
-    newas->pte_head = copy_pt(old->pte_head,&retval_pte);
+    newas->pte_head = copy_pt(newas, old->pte_head,&retval_pte);
     if(retval_pte != 0){
     	return retval_pte;
     }

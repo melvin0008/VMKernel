@@ -19,7 +19,7 @@ static struct spinlock tlb_spinlock;
 static uint32_t total_num_pages;
 static uint32_t first_free_page;
 
-static void set_cmap_entry(struct coremap_entry *cmap, bool is_fixed , bool is_free, bool is_dirty, bool is_clean , size_t chunk_size){
+static void set_cmap_entry(struct coremap_entry *cmap, bool is_fixed , bool is_free, bool is_dirty, bool is_clean , size_t chunk_size, struct addrspace *as, vaddr_t va){
     struct coremap_entry cmap_copy;
     cmap_copy = *cmap;
     cmap_copy.is_fixed = is_fixed;
@@ -27,24 +27,26 @@ static void set_cmap_entry(struct coremap_entry *cmap, bool is_fixed , bool is_f
     cmap_copy.is_dirty = is_dirty;
     cmap_copy.is_clean = is_clean;
     cmap_copy.chunk_size = chunk_size;
+    cmap_copy.as = as;
+    cmap_copy.va = va;
     *cmap = cmap_copy;
 }
 
-static void set_cmap_fixed(struct coremap_entry *cmap , size_t chunk_size){
+static void set_cmap_fixed(struct coremap_entry *cmap , size_t chunk_size, struct addrspace *as, vaddr_t va){
     // KASSERT(chunk_size!=0);
-    set_cmap_entry(cmap,true,false,false,false,chunk_size);
+    set_cmap_entry(cmap,true,false,false,false,chunk_size, as, va);
 }
 
-static void set_cmap_free(struct coremap_entry *cmap , size_t chunk_size){
-    set_cmap_entry(cmap,false,true,false,false,chunk_size);
+static void set_cmap_free(struct coremap_entry *cmap , size_t chunk_size, struct addrspace *as, vaddr_t va){
+    set_cmap_entry(cmap,false,true,false,false,chunk_size, as, va);
 }
 
-static void set_cmap_dirty(struct coremap_entry *cmap , size_t chunk_size){
-    set_cmap_entry(cmap,false,false,true,false,chunk_size);
+static void set_cmap_dirty(struct coremap_entry *cmap , size_t chunk_size, struct addrspace *as, vaddr_t va){
+    set_cmap_entry(cmap,false,false,true,false,chunk_size, as, va);
 }
 
-// static void set_cmap_clean(struct coremap_entry *cmap , size_t chunk_size){
-//     set_cmap_entry(&cmap,false,false,false,true,chunk_size);
+// static void set_cmap_clean(struct coremap_entry *cmap , size_t chunk_size, struct addrspace *as, vaddr_t va){
+//     set_cmap_entry(&cmap,false,false,false,true,chunk_size, as, va);
 // }
 
 //Ref :
@@ -63,10 +65,10 @@ init_coremap(){
     first_free_page = free_address / PAGE_SIZE + 1;
     // Iterate all kernel entries
     for(index = 0; index < first_free_page ; index ++ ){
-        set_cmap_fixed(&coremap[index],1);
+        set_cmap_fixed(&coremap[index], 1, NULL, 0);
     }
     for(index = first_free_page ; index < total_num_pages; index ++ ){
-        set_cmap_free(&coremap[index],0);
+        set_cmap_free(&coremap[index], 0, NULL, 0);
     }
 }
 
@@ -109,7 +111,7 @@ alloc_kpages(unsigned npages){
                 return 0;
             }
             if(found_section){
-                set_cmap_fixed(&coremap[start_page],npages);
+                set_cmap_fixed(&coremap[start_page],npages, NULL, 0);
                 break;
             }
         }
@@ -117,7 +119,7 @@ alloc_kpages(unsigned npages){
             panic("Should never get here");
         }
         for (uint32_t i = start_page+1; i < npages+start_page; i++){
-            set_cmap_fixed(&coremap[i],0);
+            set_cmap_fixed(&coremap[i], 0, NULL, 0);
         }
         p = start_page * PAGE_SIZE;
         spinlock_release(&coremap_spinlock);
@@ -130,7 +132,7 @@ alloc_kpages(unsigned npages){
         spinlock_acquire(&coremap_spinlock);
         for( i = first_free_page; i < total_num_pages; i++){
             if(coremap[i].is_free){
-                set_cmap_fixed(&coremap[i],1);
+                set_cmap_fixed(&coremap[i], 1, NULL, 0);
                 p = i * PAGE_SIZE;
                 bzero((void *)PADDR_TO_KVADDR(p), PAGE_SIZE);
                 break;
@@ -147,13 +149,13 @@ alloc_kpages(unsigned npages){
 };
 
 
-paddr_t page_alloc(){
+paddr_t page_alloc(struct addrspace *as, vaddr_t va){
     uint32_t i;
     paddr_t p;
     spinlock_acquire(&coremap_spinlock);
     for( i = first_free_page; i < total_num_pages; i++){
         if(coremap[i].is_free){
-            set_cmap_dirty(&coremap[i],1);
+            set_cmap_dirty(&coremap[i], 1, as, va);
             p = i * PAGE_SIZE;
             bzero((void *)PADDR_TO_KVADDR(p), PAGE_SIZE);
             break;
@@ -183,7 +185,7 @@ free_pages(paddr_t physical_page_addr, vaddr_t v_addr){
     
     last_index = (cmap_index+chunk_size);
     for(; cmap_index <last_index ; cmap_index ++){
-        set_cmap_free(&coremap[cmap_index],0);
+        set_cmap_free(&coremap[cmap_index], 0, NULL, 0);
     }
     spinlock_release(&coremap_spinlock);
 
@@ -224,7 +226,7 @@ void page_free(paddr_t physical_page_addr, vaddr_t v_addr){
     
     // last_index = (cmap_index+chunk_size);
     // for(; cmap_index <last_index ; cmap_index ++){
-        set_cmap_free(&coremap[cmap_index],0);
+        set_cmap_free(&coremap[cmap_index], 0, NULL, 0);
     // }
     spinlock_release(&coremap_spinlock);
     // free_pages(addr);
