@@ -7,9 +7,10 @@ struct page_table_entry{
     vaddr_t virtual_page_number;
     paddr_t physical_page_number;
     int permission:3;
-    bool state:1;
-    bool valid:1;
-    bool referenced:1;
+
+    bool state:1;   // physical page on disk / memory
+    bool valid:1;   // is page allocated
+    bool referenced:1;  // has the page been read / write recently
     struct page_table_entry* next;
 };
 

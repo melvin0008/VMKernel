@@ -49,6 +49,10 @@ static void set_cmap_dirty(struct coremap_entry *cmap , size_t chunk_size, struc
 //     set_cmap_entry(&cmap,false,false,false,true,chunk_size, as, va);
 // }
 
+// static void swapout_single_page(int cmap_index){
+//     (void) cmap_index;
+// }
+
 //Ref :
 //http://jhshi.me/2012/04/24/os161-coremap/index.html
 void 
