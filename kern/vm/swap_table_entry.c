@@ -23,7 +23,7 @@ struct swap_table_entry *get_ste(struct addrspace *as, vaddr_t va){
             //Do a uinit to allocate memory
             return swap_table[i];
         }
-        if(swap_table[i]->as == as && swap_table[i] == va){
+        if(swap_table[i]->as == as && swap_table[i]->va == va){
             return swap_table[i];
         }
     }
