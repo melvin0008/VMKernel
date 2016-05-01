@@ -13,7 +13,8 @@ static struct lock *swap_vnode_lock;
 void swap_disk_init(){
     int err;
     err = vfs_open((char *)"lhd0raw:",O_RDWR,0,&swap_vn);
-    KASSERT(err == 0);
+    (void) err;
+    // KASSERT(err == 0);
     swap_vnode_lock = lock_create("swap_node");
 }
 

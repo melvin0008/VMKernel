@@ -15,7 +15,7 @@ create_page_table_entry(vaddr_t vpn, paddr_t ppn, int permission){
     pte->virtual_page_number = vpn;
     pte->physical_page_number = ppn;
     pte->permission = permission;
-    pte->state = false;
+    pte->state = IN_MEM;
     pte->valid = false;
     pte->referenced = false;
     pte->next = NULL;
