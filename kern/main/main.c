@@ -114,7 +114,6 @@ boot(void)
 	thread_bootstrap();
 	hardclock_bootstrap();
 	vfs_bootstrap();
-	swap_disk_init();
 	kheap_nextgeneration();
 
 	/* Probe and initialize devices. Interrupts should come on. */
@@ -129,6 +128,7 @@ boot(void)
 
 	/* Late phase of initialization. */
 	vm_bootstrap();
+	swap_disk_init();
 	kprintf_bootstrap();
 	thread_start_cpus();
 	test161_bootstrap();

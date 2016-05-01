@@ -9,7 +9,7 @@ struct vnode *swap_vn;
 struct swap_table_entry *swap_table[MAX_SWAP_TABLE_ENTIRES];
 
 struct swap_table_entry *create_ste(struct addrspace *as, vaddr_t va);
-void add_ste(struct addrspace *as, vaddr_t va);
+int add_ste(struct addrspace *as, vaddr_t va);
 int get_ste_position(struct addrspace *as, vaddr_t va);
 void destroy_ste(struct swap_table_entry *ste);
 void swap_disk_init(void);
