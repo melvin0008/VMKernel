@@ -13,6 +13,8 @@
 #include <cpu.h>
 #include <spl.h>
 #include <machine/tlb.h>
+#include <swap_table_entry.h>
+
 
 static struct spinlock coremap_spinlock;
 static struct spinlock tlb_spinlock;
@@ -47,6 +49,39 @@ static void set_cmap_dirty(struct coremap_entry *cmap , size_t chunk_size, struc
 
 // static void set_cmap_clean(struct coremap_entry *cmap , size_t chunk_size, struct addrspace *as, vaddr_t va){
 //     set_cmap_entry(&cmap,false,false,false,true,chunk_size, as, va);
+// }
+
+static void invalidate_tlb_entry(vaddr_t va){
+    spinlock_acquire(&tlb_spinlock);
+    int spl = splhigh();
+    int tlb_index = tlb_probe(va & PAGE_FRAME, 0);
+    if(tlb_index >= 0){
+        tlb_write(TLBHI_INVALID(tlb_index), TLBLO_INVALID(), tlb_index);
+    }
+    splx(spl);
+    spinlock_release(&tlb_spinlock);
+}
+
+// static void swapout_page(int cmap_index, struct page_table_entry *pte){
+//     (void) cmap_index;
+//     // Acquire locks for cmap and page table
+//     // Shootdown tlb entry
+//     invalidate_tlb_entry(pte->virtual_page_number);
+//     // Copy contents from mem to disk
+//     // Update pte
+//     pte->state = IN_DISK;
+// }
+
+// static void swapin_page(struct addrspace *as, vaddr_t va, struct page_table_entry *pte){
+//     // Allocate a physical page
+//     paddr_t physical_page_addr = page_alloc(as, va);
+//     // Find the swap slot using ste
+//     struct swap_table_entry *ste = get_ste(as, va);
+//     // Copy stuff from disk to mem
+
+//     // Update the pte to indicate that the page is now in memory
+//     pte->physical_page_number = physical_page_addr;
+//     pte->state = IN_MEM;
 // }
 
 //Ref :
@@ -191,21 +226,7 @@ free_pages(paddr_t physical_page_addr, vaddr_t v_addr){
     }
     spinlock_release(&coremap_spinlock);
 
-
-    spinlock_acquire(&tlb_spinlock);
-    int spl = splhigh();
-    // for (cmap_index= physical_page_addr / PAGE_SIZE; cmap_index < last_index ; cmap_index ++){
-    //     v_addr = PADDR_TO_KVADDR(cmap_index*PAGE_SIZE); 
-        int tlb_index = tlb_probe(v_addr & PAGE_FRAME,0);
-        if(tlb_index >= 0){
-            // TLB fault
-            // splx(spl);
-            // panic("No tlb entry in page_free");
-            tlb_write(TLBHI_INVALID(tlb_index), TLBLO_INVALID(), tlb_index);
-        }
-    // }
-    splx(spl);
-    spinlock_release(&tlb_spinlock);
+    invalidate_tlb_entry(v_addr);
 };
 
 void
@@ -237,17 +258,7 @@ void page_free(paddr_t physical_page_addr, vaddr_t v_addr){
     // based on that swap it to disk / unmap it.
     // TODO Also shootdown TLB entry if needed
 
-    spinlock_acquire(&tlb_spinlock);
-    int spl = splhigh();
-    int tlb_index = tlb_probe(v_addr & PAGE_FRAME,0);
-    if(tlb_index >= 0){
-        // TLB fault
-        // splx(spl);
-        // panic("No tlb entry in page_free");
-        tlb_write(TLBHI_INVALID(tlb_index), TLBLO_INVALID(), tlb_index);
-    }
-    splx(spl);
-    spinlock_release(&tlb_spinlock);
+    invalidate_tlb_entry(v_addr);
 
 };
 
@@ -271,18 +282,16 @@ coremap_used_bytes(void){
 
 void 
 vm_tlbshootdown_all(void){
-    int i, spl;
 
     /* Disable interrupts on this CPU while frobbing the TLB. */
-    // spinlock_acquire(&tlb_spinlock);
+    spinlock_acquire(&tlb_spinlock);
+    int i, spl;
     spl = splhigh();
-
     for (i=0; i<NUM_TLB; i++) {
         tlb_write(TLBHI_INVALID(i), TLBLO_INVALID(), i);
     }
-
     splx(spl);
-    // spinlock_release(&tlb_spinlock);
+    spinlock_release(&tlb_spinlock);
         
 };
 void
