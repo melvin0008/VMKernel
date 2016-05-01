@@ -47,6 +47,7 @@
 #include <device.h>
 #include <syscall.h>
 #include <vm.h>
+#include <swap_table_entry.h>
 #include <test.h>
 #include <kern/test161.h>
 #include <version.h>
@@ -113,6 +114,7 @@ boot(void)
 	thread_bootstrap();
 	hardclock_bootstrap();
 	vfs_bootstrap();
+	swap_disk_init();
 	kheap_nextgeneration();
 
 	/* Probe and initialize devices. Interrupts should come on. */

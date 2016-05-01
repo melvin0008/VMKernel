@@ -116,6 +116,8 @@ alloc_kpages(unsigned npages){
             }
         }
         if(i>=total_num_pages){
+            //evict
+            //swapout
             panic("Should never get here");
         }
         for (uint32_t i = start_page+1; i < npages+start_page; i++){
