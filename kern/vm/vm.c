@@ -14,9 +14,9 @@
 #include <spl.h>
 #include <machine/tlb.h>
 #include <swap_table_entry.h>
+#include <clock.h>
 
 
-static struct spinlock coremap_spinlock;
 static struct spinlock tlb_spinlock;
 static uint32_t total_num_pages;
 static uint32_t first_free_page;
@@ -31,6 +31,9 @@ static void set_cmap_entry(struct coremap_entry *cmap, bool is_fixed , bool is_f
     cmap_copy.chunk_size = chunk_size;
     cmap_copy.as = as;
     cmap_copy.va = va;
+
+    
+
     *cmap = cmap_copy;
 }
 
@@ -47,9 +50,15 @@ static void set_cmap_dirty(struct coremap_entry *cmap , size_t chunk_size, struc
     set_cmap_entry(cmap,false,false,true,false,chunk_size, as, va);
 }
 
-// static void set_cmap_clean(struct coremap_entry *cmap , size_t chunk_size, struct addrspace *as, vaddr_t va){
-//     set_cmap_entry(&cmap,false,false,false,true,chunk_size, as, va);
-// }
+static void set_cmap_clean(struct coremap_entry *cmap){
+    struct coremap_entry cmap_copy;
+    cmap_copy = *cmap;
+    cmap_copy.is_fixed = false;
+    cmap_copy.is_free = false;
+    cmap_copy.is_dirty = false;
+    cmap_copy.is_clean = true;
+    *cmap = cmap_copy;
+}
 
 static void invalidate_tlb_entry(vaddr_t va){
     spinlock_acquire(&tlb_spinlock);
@@ -100,7 +109,7 @@ static paddr_t find_continuous_block(bool is_swap, unsigned npages){
         for( j = start_page; j < start_page+npages; j++ ){
 
             if(is_swap){
-                condition_to_check = !coremap[j].is_fixed;
+                condition_to_check = coremap[j].is_free || coremap[j].is_dirty;
             }
             else{
                 condition_to_check = coremap[j].is_free;
@@ -124,15 +133,17 @@ static paddr_t find_continuous_block(bool is_swap, unsigned npages){
             break;
         }
         if(found_section){
-            if(!is_swap && coremap[start_page].is_dirty){
+            if(is_swap && coremap[start_page].is_dirty){
                 // SWAP
+                set_cmap_clean(&coremap[start_page]);
                 swapout_page(start_page);
             }
             set_cmap_fixed(&coremap[start_page],npages, NULL, 0);
 
             for (uint32_t l = start_page + 1; l < npages + start_page; l++){
-                if(!is_swap && coremap[l].is_dirty){
+                if(is_swap && coremap[l].is_dirty){
                     // SWAP
+                    set_cmap_clean(&coremap[l]);
                     swapout_page(l);
                 }
                 set_cmap_fixed(&coremap[l], 0, NULL, 0);
@@ -147,16 +158,19 @@ static paddr_t find_continuous_block(bool is_swap, unsigned npages){
 static uint32_t get_victim_index(){
     // KASSERT(spinlock_do_i_hold(&coremap_spinlock));
     uint32_t i;
-
-    // Find the first dirty page
-    // and consider it as the victim AS OF NOW!
-    for(i = first_free_page; i < total_num_pages; i++){
+    uint32_t rstart = first_free_page + (random()%(total_num_pages-first_free_page));
+    // kprintf("Rstart %d first free%d",rstart,first_free_page);
+    for(i = rstart; i < total_num_pages; i++){
+        if(coremap[i].is_dirty)
+            return i;
+    }
+    for(i = first_free_page; i < rstart; i++){
         if(coremap[i].is_dirty)
             return i;
     }
     if(i>=total_num_pages){
+        panic("Not a single user page to swapout !");
         return 0;
-        // panic("Not a single user page to swapout !");
     }
     return i;
 
@@ -167,12 +181,10 @@ static void swapin_page(struct addrspace *as, vaddr_t va, struct page_table_entr
     paddr_t physical_page_addr = page_alloc(as, va);
     // Find the swap slot using ste and
     // Copy stuff from disk to mem
-    spinlock_acquire(&coremap_spinlock);
     swapdisk_to_memory(as, va, physical_page_addr);
     // Update the pte to indicate that the page is now in memory
     pte->physical_page_number = physical_page_addr;
     pte->state = IN_MEM;
-    spinlock_release(&coremap_spinlock);
 }
 
 //Ref :
@@ -252,6 +264,7 @@ alloc_kpages(unsigned npages){
                 spinlock_release(&coremap_spinlock);
                 return 0;
             }
+            set_cmap_clean(&coremap[i]);
             swapout_page(i);
             // Update the new owner info
             set_cmap_fixed(&coremap[i], 1, NULL, 0);
@@ -272,6 +285,12 @@ paddr_t page_alloc(struct addrspace *as, vaddr_t va){
     for( i = first_free_page; i < total_num_pages; i++){
         if(coremap[i].is_free){
             set_cmap_dirty(&coremap[i], 1, as, va);
+
+            struct timespec time;
+            gettime(&time);
+            coremap[i].sec = time.tv_sec;
+            coremap[i].nanosec = time.tv_nsec;
+
             p = i * PAGE_SIZE;
             bzero((void *)PADDR_TO_KVADDR(p), PAGE_SIZE);
             break;
@@ -290,9 +309,16 @@ paddr_t page_alloc(struct addrspace *as, vaddr_t va){
             spinlock_release(&coremap_spinlock);
             return 0;
         }
+
+        set_cmap_clean(&coremap[i]);
         swapout_page(i);
         // Update the new owner info
         set_cmap_dirty(&coremap[i], 1, as, va);
+        struct timespec time;
+        gettime(&time);
+        coremap[i].sec = time.tv_sec;
+        coremap[i].nanosec = time.tv_nsec;
+
         p = i * PAGE_SIZE;
         bzero((void *)PADDR_TO_KVADDR(p), PAGE_SIZE);
     }

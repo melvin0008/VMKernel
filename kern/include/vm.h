@@ -48,6 +48,7 @@ struct addrspace as;
 #define VM_FAULT_WRITE       1    /* A write was attempted */
 #define VM_FAULT_READONLY    2    /* A write to a readonly page was attempted*/
 
+struct spinlock coremap_spinlock;
 
 struct coremap_entry
 {
@@ -62,6 +63,8 @@ struct coremap_entry
     // Swapping
     struct addrspace *as;
     vaddr_t va;
+    time_t sec;
+    uint32_t nanosec;
 };
 
 struct coremap_entry *coremap;

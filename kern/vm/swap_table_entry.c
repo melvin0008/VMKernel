@@ -62,6 +62,7 @@ void memory_to_swapdisk(int cmap_index){
     //Write to disk using VOP_WRITE
     //bzero the newly created space in memory
     struct coremap_entry cmap = coremap[cmap_index];
+    spinlock_release(&coremap_spinlock);
     paddr_t paddr = cmap_index * PAGE_SIZE;
 
     int disk_position = get_ste_position(cmap.as,cmap.va);
@@ -72,16 +73,16 @@ void memory_to_swapdisk(int cmap_index){
     struct iovec io_vec;
     lock_acquire(swap_vnode_lock);
     uio_kinit(&io_vec,&user_io,(void *) PADDR_TO_KVADDR(paddr),PAGE_SIZE, disk_position * PAGE_SIZE,UIO_WRITE);
+
+    
     int err = VOP_WRITE(swap_vn,&user_io);
     lock_release(swap_vnode_lock);
+    spinlock_acquire(&coremap_spinlock);
     if(err) panic("Can't Read . I have no idea what to do now");
 
 }
 
 void swapdisk_to_memory(struct addrspace *as, vaddr_t va,paddr_t paddr){
-    (void) as;
-    (void) va;
-    (void) paddr;
     //get_ste_position
     //paddr/PAGESIZE -> Coremap index
     //read from swapdisk using VOP_READ
@@ -92,7 +93,9 @@ void swapdisk_to_memory(struct addrspace *as, vaddr_t va,paddr_t paddr){
     struct iovec io_vec;
     lock_acquire(swap_vnode_lock);
     uio_kinit(&io_vec, &user_io, (void *) PADDR_TO_KVADDR(paddr), PAGE_SIZE, disk_position * PAGE_SIZE,UIO_READ);
+
     int err = VOP_READ(swap_vn,&user_io);
+    
     lock_release(swap_vnode_lock);
     if(err) panic("Can't Read . I have no idea what to do now");
 }
