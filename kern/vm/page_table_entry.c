@@ -2,7 +2,9 @@
 #include <kern/errno.h>
 #include <lib.h>
 #include <addrspace.h>
-#include <vm.h> 
+#include <vm.h>
+#include <bitmap.h>
+#include <swap_table_entry.h>
 
 // Create and init
 struct page_table_entry*
@@ -102,6 +104,7 @@ remove_pte_for(struct addrspace *as, vaddr_t va){
     if(pte_entry != NULL && pte_entry->next == NULL && vpn == pte_entry->virtual_page_number){
         page_free(pte_entry->physical_page_number, pte_entry->virtual_page_number);
         kfree(pte_entry);
+        bitmap_unmark(swap_bitmap, pte_entry->disk_position);
         as->pte_head = NULL;
     }
 
@@ -118,6 +121,7 @@ remove_pte_for(struct addrspace *as, vaddr_t va){
         pte_entry->next = NULL;
         page_free(pte_entry->physical_page_number, pte_entry->virtual_page_number);
         kfree(pte_entry);
+        bitmap_unmark(swap_bitmap, pte_entry->disk_position);
         return true;
     }
 
@@ -132,6 +136,7 @@ destroy_pte_for(struct addrspace *as){
         as->pte_head->next = NULL;
         page_free(as->pte_head->physical_page_number, as->pte_head->virtual_page_number);
         kfree(as->pte_head);
+        bitmap_unmark(swap_bitmap, as->pte_head->disk_position);
         as->pte_head = next;
     }
 }
