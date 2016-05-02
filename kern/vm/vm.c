@@ -49,15 +49,15 @@ static void set_cmap_dirty(struct coremap_entry *cmap , size_t chunk_size, struc
     set_cmap_entry(cmap,false,false,true,false,chunk_size, as, va);
 }
 
-// static void set_cmap_clean(struct coremap_entry *cmap){
-//     struct coremap_entry cmap_copy;
-//     cmap_copy = *cmap;
-//     cmap_copy.is_fixed = false;
-//     cmap_copy.is_free = false;
-//     cmap_copy.is_dirty = false;
-//     cmap_copy.is_clean = true;
-//     *cmap = cmap_copy;
-// }
+static void set_cmap_clean(struct coremap_entry *cmap){
+    struct coremap_entry cmap_copy;
+    cmap_copy = *cmap;
+    cmap_copy.is_fixed = false;
+    cmap_copy.is_free = false;
+    cmap_copy.is_dirty = false;
+    cmap_copy.is_clean = true;
+    *cmap = cmap_copy;
+}
 
 static void invalidate_tlb_entry(vaddr_t va){
     spinlock_acquire(&tlb_spinlock);
@@ -129,7 +129,7 @@ static paddr_t find_continuous_block(bool is_swap, unsigned npages){
         if(found_section){
             if(is_swap && coremap[start_page].is_dirty){
                 // SWAP
-                // set_cmap_clean(&coremap[start_page]);
+                set_cmap_clean(&coremap[start_page]);
                 swapout_page(start_page);
             }
             set_cmap_fixed(&coremap[start_page],npages, NULL, PADDR_TO_KVADDR(start_page * PAGE_SIZE));
@@ -137,7 +137,7 @@ static paddr_t find_continuous_block(bool is_swap, unsigned npages){
             for (uint32_t l = start_page + 1; l < npages + start_page; l++){
                 if(is_swap && coremap[l].is_dirty){
                     // SWAP
-                    // set_cmap_clean(&coremap[l]);
+                    set_cmap_clean(&coremap[l]);
                     swapout_page(l);
                 }
                 set_cmap_fixed(&coremap[l], 0, NULL, PADDR_TO_KVADDR(l * PAGE_SIZE));
@@ -260,7 +260,7 @@ alloc_kpages(unsigned npages){
                 // spinlock_release(&coremap_spinlock);
                 return 0;
             }
-            // set_cmap_clean(&coremap[i]);
+            set_cmap_clean(&coremap[i]);
             swapout_page(i);
             // Update the new owner info
             set_cmap_fixed(&coremap[i], 1, NULL, PADDR_TO_KVADDR(i * PAGE_SIZE));
@@ -307,7 +307,7 @@ paddr_t page_alloc(struct addrspace *as, vaddr_t va){
             return 0;
         }
         
-        // set_cmap_clean(&coremap[i]);
+        set_cmap_clean(&coremap[i]);
         swapout_page(i);
         // Update the new owner info
         set_cmap_dirty(&coremap[i], 1, as, va);
