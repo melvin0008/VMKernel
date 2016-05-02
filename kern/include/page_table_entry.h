@@ -14,7 +14,9 @@ struct page_table_entry{
     bool valid:1;   // is page allocated
     bool referenced:1;  // has the page been read / write recently
     struct page_table_entry* next;
+    struct lock *pte_lock;
     unsigned disk_position;
+
 };
 
 struct page_table_entry *create_page_table_entry(vaddr_t vpn, paddr_t ppn, int permission);

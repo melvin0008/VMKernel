@@ -5,6 +5,7 @@
 #include <vm.h>
 #include <bitmap.h>
 #include <swap_table_entry.h>
+#include <synch.h>
 
 // Create and init
 struct page_table_entry*
@@ -14,6 +15,7 @@ create_page_table_entry(vaddr_t vpn, paddr_t ppn, int permission){
     if (pte == NULL) {
         return NULL;
     };
+    pte->pte_lock = lock_create("pte-lock");
     pte->virtual_page_number = vpn;
     pte->physical_page_number = ppn;
     pte->permission = permission;
@@ -23,7 +25,7 @@ create_page_table_entry(vaddr_t vpn, paddr_t ppn, int permission){
     pte->disk_position = 0;
     pte->next = NULL;
     return pte;
-};
+}
 
 struct page_table_entry
 *add_pte(struct addrspace *as, vaddr_t new_vaddr, int permission){
@@ -76,10 +78,12 @@ page_table_entry *copy_pt(struct addrspace *newas, struct page_table_entry *old_
         return NULL;
     }
     // TODO Use add_pte if possible !
+    lock_acquire(old_pte->pte_lock);
     new_pte->virtual_page_number = old_pte->virtual_page_number;
     paddr_t temp_paddr = page_alloc(newas, new_pte->virtual_page_number);
     if(temp_paddr == 0){
         *retval = ENOMEM; //TODO:Change this
+        lock_release(old_pte->pte_lock);
         return NULL;
     }
 
@@ -89,9 +93,12 @@ page_table_entry *copy_pt(struct addrspace *newas, struct page_table_entry *old_
     new_pte->state = old_pte->state;
     new_pte->referenced = old_pte->referenced;
     new_pte->disk_position = 0;
+    new_pte->pte_lock = lock_create("pte-lock");
+    
     if(old_pte->state == IN_DISK){
         new_pte->disk_position = copy_swapdisk(old_pte->disk_position);
     }
+    lock_release(old_pte->pte_lock);
     new_pte->next = copy_pt(newas, old_pte->next,retval);
     if(*retval!=0){
         return NULL;
@@ -107,9 +114,16 @@ remove_pte_for(struct addrspace *as, vaddr_t va){
     vaddr_t vpn = va & PAGE_FRAME;
 
     if(pte_entry != NULL && pte_entry->next == NULL && vpn == pte_entry->virtual_page_number){
+
+        lock_acquire(pte_entry->pte_lock);
+        if(bitmap_isset(swap_bitmap, pte_entry->disk_position)){
+            bitmap_unmark(swap_bitmap, pte_entry->disk_position);
+        }
+
+        lock_release(pte_entry->pte_lock);
         page_free(pte_entry->physical_page_number, pte_entry->virtual_page_number);
+        lock_destroy(pte_entry->pte_lock);
         kfree(pte_entry);
-        // bitmap_unmark(swap_bitmap, pte_entry->disk_position);
         as->pte_head = NULL;
     }
 
@@ -124,9 +138,17 @@ remove_pte_for(struct addrspace *as, vaddr_t va){
     if(pte_entry != NULL){
         prev->next = pte_entry->next;
         pte_entry->next = NULL;
+
+        
+        lock_acquire(pte_entry->pte_lock);
+        if(bitmap_isset(swap_bitmap, pte_entry->disk_position)){
+            bitmap_unmark(swap_bitmap, pte_entry->disk_position);
+        }
+        lock_destroy(pte_entry->pte_lock);
+
+        lock_destroy(pte_entry->pte_lock);
         page_free(pte_entry->physical_page_number, pte_entry->virtual_page_number);
         kfree(pte_entry);
-        // bitmap_unmark(swap_bitmap, pte_entry->disk_position);
         return true;
     }
 
@@ -139,9 +161,16 @@ destroy_pte_for(struct addrspace *as){
     while(as->pte_head != NULL){
         next = as->pte_head->next;
         as->pte_head->next = NULL;
+
+        
+        lock_acquire(as->pte_head->pte_lock);
+        if(bitmap_isset(swap_bitmap, as->pte_head->disk_position)){
+            bitmap_unmark(swap_bitmap, as->pte_head->disk_position);
+        }
+        lock_release(as->pte_head->pte_lock);
+        lock_destroy(as->pte_head->pte_lock);
         page_free(as->pte_head->physical_page_number, as->pte_head->virtual_page_number);
         kfree(as->pte_head);
-        // bitmap_unmark(swap_bitmap, as->pte_head->disk_position);
         as->pte_head = next;
     }
 }

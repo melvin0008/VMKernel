@@ -65,6 +65,7 @@ void memory_to_swapdisk(int cmap_index){
     KASSERT(cmap.va != 0);
 
     struct page_table_entry *pte = search_pte(cmap.as, cmap.va);
+    KASSERT(pte != NULL);
 
     paddr_t paddr = cmap_index * PAGE_SIZE;
 
@@ -72,15 +73,16 @@ void memory_to_swapdisk(int cmap_index){
     struct uio user_io;
     struct iovec io_vec;
     lock_acquire(swap_vnode_lock);
+    lock_acquire(pte->pte_lock);
+
+    pte->disk_position = disk_position;
+    pte->state = IN_DISK;
     uio_kinit(&io_vec,&user_io,(void *) PADDR_TO_KVADDR(paddr),PAGE_SIZE, disk_position * PAGE_SIZE,UIO_WRITE);
     int err = VOP_WRITE(swap_vn,&user_io);
     if(err) panic("Can't Read . I have no idea what to do now");
     lock_release(swap_vnode_lock);
+    lock_release(pte->pte_lock);
 
-    KASSERT(pte != NULL);
-
-    pte->disk_position = disk_position;
-    pte->state = IN_DISK;
 
 }
 
@@ -94,12 +96,15 @@ void swapdisk_to_memory(struct page_table_entry *pte, paddr_t paddr){
     struct uio user_io;
     struct iovec io_vec;
     lock_acquire(swap_vnode_lock);
+    lock_acquire(pte->pte_lock);
+
     uio_kinit(&io_vec, &user_io, (void *) PADDR_TO_KVADDR(paddr), PAGE_SIZE, disk_position * PAGE_SIZE,UIO_READ);
 
     int err = VOP_READ(swap_vn,&user_io);
     bitmap_unmark(swap_bitmap, disk_position);
     pte->state = IN_MEM;
     pte->physical_page_number = paddr;
+    lock_release(pte->pte_lock);
 
     lock_release(swap_vnode_lock);
     if(err) panic("Can't Read . I have no idea what to do now");

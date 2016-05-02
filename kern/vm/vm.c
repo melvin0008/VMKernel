@@ -30,7 +30,7 @@ static void set_cmap_entry(struct coremap_entry *cmap, bool is_fixed , bool is_f
     cmap_copy.is_clean = is_clean;
     cmap_copy.chunk_size = chunk_size;
     cmap_copy.as = as;
-    cmap_copy.va = va;
+    cmap_copy.va = va & PAGE_FRAME;
 
 
     *cmap = cmap_copy;
