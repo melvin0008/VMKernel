@@ -60,8 +60,11 @@ void memory_to_swapdisk(int cmap_index){
     //bzero the newly created space in memory
     spinlock_acquire(&coremap_spinlock);
     struct coremap_entry cmap = coremap[cmap_index];
-    struct page_table_entry *pte = search_pte(cmap.as, cmap.va);
     spinlock_release(&coremap_spinlock);
+    KASSERT(cmap.as != NULL);
+    KASSERT(cmap.va != 0);
+
+    struct page_table_entry *pte = search_pte(cmap.as, cmap.va);
 
     paddr_t paddr = cmap_index * PAGE_SIZE;
 
