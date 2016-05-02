@@ -1,4 +1,4 @@
-#define MAX_SWAP_TABLE_ENTIRES 8000 //32mb/4kb
+#define MAX_SWAP_TABLE_ENTIRES 4096 //32mb/4kb
 
 struct swap_table_entry{
     vaddr_t va;

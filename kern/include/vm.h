@@ -43,6 +43,8 @@ struct addrspace as;
 #include <addrspace.h>
 #include <spinlock.h>
 
+struct spinlock coremap_spinlock;
+
 /* Fault-type arguments to vm_fault() */
 #define VM_FAULT_READ        0    /* A read was attempted */
 #define VM_FAULT_WRITE       1    /* A write was attempted */

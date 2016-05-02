@@ -45,7 +45,7 @@ int get_ste_position(struct addrspace *as, vaddr_t va){
     //TODO: Explore bitmap.h to look for an elegant way to do this shit!
     // Search the swap table
     for (int i = 0 ; i < MAX_SWAP_TABLE_ENTIRES; i++ ){
-        if(swap_table[i] == NULL) break;
+        if(swap_table[i] == NULL) continue;
         if(swap_table[i]->as == as && swap_table[i]->va == va){
             return i;
         }
@@ -62,19 +62,23 @@ void memory_to_swapdisk(int cmap_index){
     //Write to disk using VOP_WRITE
     //bzero the newly created space in memory
     struct coremap_entry cmap = coremap[cmap_index];
+    spinlock_release(&coremap_spinlock);
     paddr_t paddr = cmap_index * PAGE_SIZE;
 
+    KASSERT(cmap.va<0x80000000);
+    KASSERT(cmap.va!=0);
     int disk_position = get_ste_position(cmap.as,cmap.va);
     if(disk_position == -1){
         disk_position = add_ste(cmap.as,cmap.va);
     }
     struct uio user_io;
     struct iovec io_vec;
-    lock_acquire(swap_vnode_lock);
+    // lock_acquire(swap_vnode_lock);
     uio_kinit(&io_vec,&user_io,(void *) PADDR_TO_KVADDR(paddr),PAGE_SIZE, disk_position * PAGE_SIZE,UIO_WRITE);
     int err = VOP_WRITE(swap_vn,&user_io);
-    lock_release(swap_vnode_lock);
-    if(err) panic("Can't Read . I have no idea what to do now");
+    // lock_release(swap_vnode_lock);
+    spinlock_acquire(&coremap_spinlock);
+    if(err) panic("Can't Write . I have no idea what to do now");
 
 }
 
@@ -86,15 +90,23 @@ void swapdisk_to_memory(struct addrspace *as, vaddr_t va,paddr_t paddr){
     //paddr/PAGESIZE -> Coremap index
     //read from swapdisk using VOP_READ
     //Copy to Coremap index
+    KASSERT(va<0x80000000);
+    KASSERT(va!=0);
+    spinlock_release(&coremap_spinlock);
     int disk_position = get_ste_position(as,va);
+    KASSERT(disk_position!=-1);
     // int coremap_index = paddr / PAGE_SIZE;
     struct uio user_io;
     struct iovec io_vec;
-    lock_acquire(swap_vnode_lock);
+    // lock_acquire(swap_vnode_lock);
     uio_kinit(&io_vec, &user_io, (void *) PADDR_TO_KVADDR(paddr), PAGE_SIZE, disk_position * PAGE_SIZE,UIO_READ);
     int err = VOP_READ(swap_vn,&user_io);
-    lock_release(swap_vnode_lock);
+    // lock_release(swap_vnode_lock);
     if(err) panic("Can't Read . I have no idea what to do now");
+    spinlock_acquire(&coremap_spinlock);
+    // coremap[coremap_index].va = va;
+    // coremap[coremap_index].as = as;
+    // coremap[coremap_index].chunk_size = 1; 
 }
 
 void destroy_ste(struct swap_table_entry *ste){
