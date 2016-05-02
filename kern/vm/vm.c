@@ -78,12 +78,21 @@ static void swapout_page(int cmap_index){
     // spinlock_release(&coremap_spinlock);
     // Shootdown tlb entry
     // Copy contents from mem to disk
+    invalidate_tlb_entry(cmap_entry.va);
     memory_to_swapdisk(cmap_index);
     // Update pte
-    invalidate_tlb_entry(cmap_entry.va);
     
 }
 
+static void swapin_page(struct addrspace *as, vaddr_t va, struct page_table_entry *pte){
+    // Allocate a physical page
+    paddr_t physical_page_addr = page_alloc(as, va);
+    // Find the swap slot using ste and
+    // Copy stuff from disk to mem
+    swapdisk_to_memory(pte, physical_page_addr);
+
+    // Update the pte to indicate that the page is now in memory
+}
 
 static paddr_t find_continuous_block(bool is_swap, unsigned npages){
     paddr_t p = 0;
@@ -170,16 +179,7 @@ static uint32_t get_victim_index(){
 
 }
 
-static void swapin_page(struct addrspace *as, vaddr_t va, struct page_table_entry *pte){
-    // Allocate a physical page
-    paddr_t physical_page_addr = page_alloc(as, va);
-    // Find the swap slot using ste and
-    // Copy stuff from disk to mem
-    swapdisk_to_memory(pte, physical_page_addr);
-    pte->virtual_page_number = va;
 
-    // Update the pte to indicate that the page is now in memory
-}
 
 //Ref :
 //http://jhshi.me/2012/04/24/os161-coremap/index.html
@@ -280,7 +280,6 @@ paddr_t page_alloc(struct addrspace *as, vaddr_t va){
     spinlock_acquire(&coremap_spinlock);
     for( i = first_free_page; i < total_num_pages; i++){
         if(coremap[i].is_free){
-            set_cmap_dirty(&coremap[i], 1, as, va);
 
             struct timespec time;
             gettime(&time);
@@ -288,6 +287,7 @@ paddr_t page_alloc(struct addrspace *as, vaddr_t va){
             coremap[i].nanosec = time.tv_nsec;
 
             p = i * PAGE_SIZE;
+            set_cmap_dirty(&coremap[i], 1, as, va);
             bzero((void *)PADDR_TO_KVADDR(p), PAGE_SIZE);
             break;
         }
@@ -310,13 +310,12 @@ paddr_t page_alloc(struct addrspace *as, vaddr_t va){
         // set_cmap_clean(&coremap[i]);
         swapout_page(i);
         // Update the new owner info
-        set_cmap_dirty(&coremap[i], 1, as, va);
         struct timespec time;
         gettime(&time);
         coremap[i].sec = time.tv_sec;
         coremap[i].nanosec = time.tv_nsec;
-
         p = i * PAGE_SIZE;
+        set_cmap_dirty(&coremap[i], 1, as, va);
         bzero((void *)PADDR_TO_KVADDR(p), PAGE_SIZE);
     }
     return p;

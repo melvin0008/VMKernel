@@ -3,6 +3,7 @@
 #include <lib.h>
 #include <addrspace.h>
 #include <vm.h> 
+#include <swap_table_entry.h>
 
 // Create and init
 struct page_table_entry*
@@ -18,6 +19,7 @@ create_page_table_entry(vaddr_t vpn, paddr_t ppn, int permission){
     pte->state = IN_MEM;
     pte->valid = false;
     pte->referenced = false;
+    pte->disk_position = 0;
     pte->next = NULL;
     return pte;
 };
@@ -85,6 +87,10 @@ page_table_entry *copy_pt(struct addrspace *newas, struct page_table_entry *old_
     new_pte->permission = old_pte->permission;
     new_pte->state = old_pte->state;
     new_pte->referenced = old_pte->referenced;
+    new_pte->disk_position = 0;
+    if(old_pte->state == IN_DISK){
+        new_pte->disk_position = copy_swapdisk(old_pte->disk_position);
+    }
     new_pte->next = copy_pt(newas, old_pte->next,retval);
     if(*retval!=0){
         return NULL;

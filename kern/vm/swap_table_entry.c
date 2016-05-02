@@ -3,11 +3,11 @@
 #include <vfs.h>
 #include <vnode.h>
 #include <kern/fcntl.h>
-#include <vm.h>
-#include <swap_table_entry.h>
 #include <uio.h>
+#include <vm.h>
 #include <synch.h>
 #include <bitmap.h>
+#include <swap_table_entry.h>
 
 // #include <addrspace.h>
 
@@ -29,6 +29,24 @@ unsigned get_clear_bit(){
         panic("No place in swap Disk!!! Report to Discourse :p");
     }
     return i;
+}
+
+unsigned copy_swapdisk(unsigned old_disk_position){
+    unsigned new_disk_position = get_clear_bit();
+    struct uio user_io;
+    struct iovec io_vec;
+    char swapdisk_buffer[PAGE_SIZE];
+    lock_acquire(swap_vnode_lock);
+    uio_kinit(&io_vec, &user_io, swapdisk_buffer, PAGE_SIZE, old_disk_position * PAGE_SIZE,UIO_READ);
+    int err = VOP_READ(swap_vn,&user_io);
+    if(err) panic("Can't Read . I have no idea what to do now");
+    struct uio user_io1;
+    struct iovec io_vec1; 
+    uio_kinit(&io_vec1,&user_io1,swapdisk_buffer,PAGE_SIZE, new_disk_position * PAGE_SIZE,UIO_WRITE);
+    err = VOP_WRITE(swap_vn,&user_io1);
+    if(err) panic("Can't Read . I have no idea what to do now");
+    lock_release(swap_vnode_lock);
+    return new_disk_position;
 }
 
 
