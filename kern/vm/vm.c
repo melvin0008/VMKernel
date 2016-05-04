@@ -31,13 +31,10 @@ static void set_cmap_entry(struct coremap_entry *cmap, bool is_fixed , bool is_f
     cmap_copy.chunk_size = chunk_size;
     cmap_copy.as = as;
     cmap_copy.va = va & PAGE_FRAME;
-
-
     *cmap = cmap_copy;
 }
 
 static void set_cmap_fixed(struct coremap_entry *cmap , size_t chunk_size, struct addrspace *as, vaddr_t va){
-    // KASSERT(chunk_size!=0);
     set_cmap_entry(cmap,true,false,false,false,chunk_size, as, va);
 }
 
@@ -159,7 +156,11 @@ static paddr_t find_continuous_block(bool is_swap, unsigned npages){
                     set_cmap_clean(&coremap[l]);
                     swapout_page(l);
                 }
+
+                KASSERT(coremap[l].is_clean);
                 set_cmap_fixed(&coremap[l], 0, NULL, PADDR_TO_KVADDR(l * PAGE_SIZE));
+                KASSERT(coremap[l].is_fixed);
+
             }
             p = start_page * PAGE_SIZE;
             break;
@@ -230,12 +231,7 @@ alloc_kpages(unsigned npages){
         spinlock_acquire(&coremap_spinlock);
         
         p = find_continuous_block(false, npages);
-
-
         if(p == 0){
-            //evict
-            //swapout
-            // panic("Should never get here");
             p = find_continuous_block(true, npages);
             if(p == 0){
                 panic("Can't allocate continuous pages even with swapping enabled");
@@ -260,21 +256,23 @@ alloc_kpages(unsigned npages){
         }
 
         if(i>=total_num_pages){
-            // spinlock_release(&coremap_spinlock);
-            // return 0;
             i = get_victim_index();
             if(i == 0){
                 spinlock_release(&coremap_spinlock);
-
-                // spinlock_release(&coremap_spinlock);
                 return 0;
             }
+
+            KASSERT(coremap[i].is_dirty);
             set_cmap_clean(&coremap[i]);
+            KASSERT(coremap[i].is_clean);
             swapout_page(i);
+            KASSERT(coremap[i].is_clean);
             // Update the new owner info
             set_cmap_fixed(&coremap[i], 1, NULL, PADDR_TO_KVADDR(i * PAGE_SIZE));
             p = i * PAGE_SIZE;
             bzero((void *)PADDR_TO_KVADDR(p), PAGE_SIZE);
+            KASSERT(coremap[i].is_fixed);
+
         }
         spinlock_release(&coremap_spinlock);
     }
@@ -311,13 +309,17 @@ paddr_t page_alloc(struct addrspace *as, vaddr_t va){
             return 0;
         }
         
+        KASSERT(coremap[i].is_dirty);
         set_cmap_clean(&coremap[i]);
+        KASSERT(coremap[i].is_clean);
         swapout_page(i);
+        KASSERT(coremap[i].is_clean);
         // Update the new owner info
         
         p = i * PAGE_SIZE;
         set_cmap_dirty(&coremap[i], 1, as, va);
         bzero((void *)PADDR_TO_KVADDR(p), PAGE_SIZE);
+        KASSERT(coremap[i].is_dirty);
     }
     spinlock_release(&coremap_spinlock);
     return p;
@@ -341,6 +343,7 @@ free_pages(paddr_t physical_page_addr, vaddr_t v_addr){
     
     last_index = (cmap_index+chunk_size);
     for(; cmap_index <last_index ; cmap_index ++){
+        KASSERT(!coremap[cmap_index].is_free);
         set_cmap_free(&coremap[cmap_index], 0, NULL, 0);
     }
     spinlock_release(&coremap_spinlock);
@@ -520,6 +523,7 @@ vm_fault(int faulttype, vaddr_t faultaddress){
             if(pte->state == IN_DISK){
                 swapin_page(as, faultaddress, pte);                
             }
+            KASSERT(pte->state == IN_MEM);
             lock_release(pte->pte_lock);
 
 

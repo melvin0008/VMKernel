@@ -62,10 +62,12 @@ void memory_to_swapdisk(int cmap_index, struct page_table_entry *pte){
     //if not available add_pte
     //Write to disk using VOP_WRITE
     //bzero the newly created space in memory
-    struct coremap_entry cmap = coremap[cmap_index];
+    KASSERT(pte->state == IN_MEM);
+    // struct coremap_entry cmap = coremap[cmap_index];
     spinlock_release(&coremap_spinlock);
-    KASSERT(cmap.as != NULL);
-    KASSERT(cmap.va != 0);
+    KASSERT(coremap[cmap_index].as != NULL);
+    KASSERT(coremap[cmap_index].va != 0);
+    KASSERT(coremap[cmap_index].is_clean);
 
     lock_acquire(swap_vnode_lock);
     // struct page_table_entry *pte = search_pte(cmap.as, cmap.va);
@@ -81,13 +83,11 @@ void memory_to_swapdisk(int cmap_index, struct page_table_entry *pte){
 
     // pte->disk_position = disk_position;
     pte->state = IN_DISK;
-    uio_kinit(&io_vec,&user_io,(void *) PADDR_TO_KVADDR(paddr),PAGE_SIZE, pte->disk_position * PAGE_SIZE,UIO_WRITE);
+    uio_kinit(&io_vec, &user_io, (void *) PADDR_TO_KVADDR(paddr), PAGE_SIZE, pte->disk_position * PAGE_SIZE,UIO_WRITE);
     int err = VOP_WRITE(swap_vn,&user_io);
     if(err) panic("Can't Read . I have no idea what to do now");
     lock_release(swap_vnode_lock);
     spinlock_acquire(&coremap_spinlock);
-
-
 }
 
 void swapdisk_to_memory(struct page_table_entry *pte, paddr_t paddr){
@@ -96,7 +96,9 @@ void swapdisk_to_memory(struct page_table_entry *pte, paddr_t paddr){
     //read from swapdisk using VOP_READ
     //Copy to Coremap index
     // lock_acquire(pte->pte_lock);
+    KASSERT(pte->state == IN_DISK);
     lock_acquire(swap_vnode_lock);
+    KASSERT(pte->state == IN_DISK);
 
     // KASSERT(disk_position!=-1);
     struct uio user_io;

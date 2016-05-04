@@ -6,7 +6,7 @@
 #include <bitmap.h>
 #include <swap_table_entry.h>
 #include <synch.h>
-static char kernel_buffer[PAGE_SIZE];
+// static char kernel_buffer[PAGE_SIZE];
 // Create and init
 struct page_table_entry*
 create_page_table_entry(vaddr_t vpn, paddr_t ppn, int permission){
@@ -73,16 +73,16 @@ page_table_entry *copy_pt(struct addrspace *newas, struct page_table_entry *old_
     while(old_pte!=NULL){
         lock_acquire(old_pte->pte_lock);
         struct page_table_entry *new_pte = add_pte(newas,old_pte->virtual_page_number,0,old_pte->permission);
-        bzero((void *)kernel_buffer, PAGE_SIZE);
-        if(old_pte->state== IN_MEM){
-            memmove((void *) kernel_buffer,(void *)PADDR_TO_KVADDR(old_pte->physical_page_number),PAGE_SIZE);
-        }
+        // bzero((void *)kernel_buffer, PAGE_SIZE);
+        // if(old_pte->state== IN_MEM){
+        //     memmove((void *) kernel_buffer,(void *)PADDR_TO_KVADDR(old_pte->physical_page_number),PAGE_SIZE);
+        // }
         new_pte->physical_page_number = page_alloc(newas,old_pte->virtual_page_number);
         if(old_pte->state == IN_DISK ){
             copy_swapdisk(old_pte->disk_position, new_pte->disk_position);
         }
         else{
-            memmove((void *) PADDR_TO_KVADDR(new_pte->physical_page_number),(void *)kernel_buffer,PAGE_SIZE);
+            memmove((void *) PADDR_TO_KVADDR(new_pte->physical_page_number),(void *)PADDR_TO_KVADDR(old_pte->physical_page_number),PAGE_SIZE);
         }
         lock_release(old_pte->pte_lock);
         old_pte = old_pte->next;
@@ -122,13 +122,11 @@ remove_pte_for(struct addrspace *as, vaddr_t va){
     if(pte_entry != NULL){
         prev->next = pte_entry->next;
         pte_entry->next = NULL;
-
-        
-        // lock_acquire(pte_entry->pte_lock);
-        // if(pte_entry->state == IN_DISK &&bitmap_isset(swap_bitmap, pte_entry->disk_position)){
-        //     bitmap_unmark(swap_bitmap, pte_entry->disk_position);
-        // }
-        // lock_release(as->pte_head->pte_lock);
+        lock_acquire(pte_entry->pte_lock);
+        if(pte_entry->state == IN_DISK &&bitmap_isset(swap_bitmap, pte_entry->disk_position)){
+            bitmap_unmark(swap_bitmap, pte_entry->disk_position);
+        }
+        lock_release(as->pte_head->pte_lock);
         lock_destroy(pte_entry->pte_lock);
         page_free(pte_entry->physical_page_number, pte_entry->virtual_page_number);
         kfree(pte_entry);
