@@ -60,26 +60,32 @@ static void set_cmap_clean(struct coremap_entry *cmap){
 }
 
 static void invalidate_tlb_entry(vaddr_t va){
-    spinlock_acquire(&tlb_spinlock);
+    // spinlock_acquire(&tlb_spinlock);
+    va &= PAGE_FRAME;
+    ipi_broadcast(IPI_TLBSHOOTDOWN);
     int spl = splhigh();
     int tlb_index = tlb_probe(va & PAGE_FRAME, 0);
     if(tlb_index >= 0){
         tlb_write(TLBHI_INVALID(tlb_index), TLBLO_INVALID(), tlb_index);
     }
     splx(spl);
-    spinlock_release(&tlb_spinlock);
+    // spinlock_release(&tlb_spinlock);
 }
 
 static void swapout_page(int cmap_index){
     // Acquire locks for cmap and page table
-    // TODO LOCK FOR PTE???
     // spinlock_acquire(&coremap_spinlock);
     struct coremap_entry cmap_entry = coremap[cmap_index];
+    // invalidate_tlb_entry(cmap_entry.va);
+    tlb_shootdown_all_cpus(cmap_entry.as, cmap_entry.va);
+    struct page_table_entry *pte = search_pte(cmap_entry.as, cmap_entry.va);
+    lock_acquire(pte->pte_lock);
+    memory_to_swapdisk(cmap_index, pte);
+    lock_release(pte->pte_lock);
+
     // spinlock_release(&coremap_spinlock);
     // Shootdown tlb entry
     // Copy contents from mem to disk
-    invalidate_tlb_entry(cmap_entry.va);
-    memory_to_swapdisk(cmap_index);
     // Update pte
     
 }
@@ -87,11 +93,13 @@ static void swapout_page(int cmap_index){
 static void swapin_page(struct addrspace *as, vaddr_t va, struct page_table_entry *pte){
     
     // Allocate a physical page
-    paddr_t physical_page_addr = page_alloc(as, va);
-    pte->physical_page_number = physical_page_addr;
+    // lock_acquire(pte->pte_lock);
+    pte->physical_page_number = page_alloc(as, va);
+
     // Find the swap slot using ste and
     // Copy stuff from disk to mem
-    swapdisk_to_memory(pte, physical_page_addr);
+    swapdisk_to_memory(pte, pte->physical_page_number);
+    // lock_release(pte->pte_lock);
 
     // Update the pte to indicate that the page is now in memory
 }
@@ -143,7 +151,7 @@ static paddr_t find_continuous_block(bool is_swap, unsigned npages){
                 set_cmap_clean(&coremap[start_page]);
                 swapout_page(start_page);
             }
-            set_cmap_fixed(&coremap[start_page],npages, NULL, PADDR_TO_KVADDR(start_page * PAGE_SIZE));
+            set_cmap_fixed(&coremap[start_page], npages, NULL, PADDR_TO_KVADDR(start_page * PAGE_SIZE));
 
             for (uint32_t l = start_page + 1; l < npages + start_page; l++){
                 if(is_swap && coremap[l].is_dirty){
@@ -234,10 +242,8 @@ alloc_kpages(unsigned npages){
             }
 
         }
-
-        
-        spinlock_release(&coremap_spinlock);
         bzero((void *)PADDR_TO_KVADDR(p), npages * PAGE_SIZE);
+        spinlock_release(&coremap_spinlock);
     }
     else{
         //Single Page
@@ -285,11 +291,6 @@ paddr_t page_alloc(struct addrspace *as, vaddr_t va){
     for( i = first_free_page; i < total_num_pages; i++){
         if(coremap[i].is_free){
 
-            struct timespec time;
-            gettime(&time);
-            coremap[i].sec = time.tv_sec;
-            coremap[i].nanosec = time.tv_nsec;
-
             p = i * PAGE_SIZE;
             set_cmap_dirty(&coremap[i], 1, as, va);
             bzero((void *)PADDR_TO_KVADDR(p), PAGE_SIZE);
@@ -313,10 +314,7 @@ paddr_t page_alloc(struct addrspace *as, vaddr_t va){
         set_cmap_clean(&coremap[i]);
         swapout_page(i);
         // Update the new owner info
-        struct timespec time;
-        gettime(&time);
-        coremap[i].sec = time.tv_sec;
-        coremap[i].nanosec = time.tv_nsec;
+        
         p = i * PAGE_SIZE;
         set_cmap_dirty(&coremap[i], 1, as, va);
         bzero((void *)PADDR_TO_KVADDR(p), PAGE_SIZE);
@@ -333,7 +331,9 @@ free_pages(paddr_t physical_page_addr, vaddr_t v_addr){
     uint32_t cmap_index = physical_page_addr / PAGE_SIZE;
     uint32_t last_index;
         
+    invalidate_tlb_entry(v_addr);
     spinlock_acquire(&coremap_spinlock);
+    tlb_shootdown_all_cpus(coremap[cmap_index].as, coremap[cmap_index].va);
     // Get the size of the chunk
     size_t chunk_size = coremap[cmap_index].chunk_size;
     // Check if we are freeing a valid chunk
@@ -345,7 +345,6 @@ free_pages(paddr_t physical_page_addr, vaddr_t v_addr){
     }
     spinlock_release(&coremap_spinlock);
 
-    invalidate_tlb_entry(v_addr);
 };
 
 void
@@ -360,24 +359,22 @@ void page_free(paddr_t physical_page_addr, vaddr_t v_addr){
     uint32_t cmap_index = physical_page_addr / PAGE_SIZE;
     // uint32_t last_index;
         
+    invalidate_tlb_entry(v_addr);
     spinlock_acquire(&coremap_spinlock);
     // Get the size of the chunk
-    // size_t chunk_size = coremap[cmap_index].chunk_size;
+    size_t chunk_size = coremap[cmap_index].chunk_size;
     // Check if we are freeing a valid chunk
-    // KASSERT(chunk_size != 0);
+    KASSERT(chunk_size != 0);
     
     // last_index = (cmap_index+chunk_size);
     // for(; cmap_index <last_index ; cmap_index ++){
-        set_cmap_free(&coremap[cmap_index], 0, NULL, 0);
+    set_cmap_free(&coremap[cmap_index], 0, NULL, 0);
     // }
     spinlock_release(&coremap_spinlock);
     // free_pages(addr);
     // TODO check if the page is mapped to any file
-    // or basically see if it is a userspace page and 
+    // or basically see if it is a dirty page and 
     // based on that swap it to disk / unmap it.
-    // TODO Also shootdown TLB entry if needed
-
-    invalidate_tlb_entry(v_addr);
 
 };
 
@@ -389,13 +386,13 @@ coremap_used_bytes(void){
     unsigned int total_used_entries = 0, index;
     
     // TODO check if active waiting is costly
-    spinlock_acquire(&coremap_spinlock);
+    // spinlock_acquire(&coremap_spinlock);
     for(index = first_free_page ; index < total_num_pages; index += 1){
         if(!coremap[index].is_free){
             total_used_entries++;
         }
     }    
-    spinlock_release(&coremap_spinlock);
+    // spinlock_release(&coremap_spinlock);
     return total_used_entries * PAGE_SIZE ;
 };
 
@@ -403,14 +400,15 @@ void
 vm_tlbshootdown_all(void){
 
     /* Disable interrupts on this CPU while frobbing the TLB. */
-    spinlock_acquire(&tlb_spinlock);
+    // spinlock_acquire(&tlb_spinlock);
     int i, spl;
+    ipi_broadcast(IPI_TLBSHOOTDOWN);
     spl = splhigh();
     for (i=0; i<NUM_TLB; i++) {
         tlb_write(TLBHI_INVALID(i), TLBLO_INVALID(), i);
     }
     splx(spl);
-    spinlock_release(&tlb_spinlock);
+    // spinlock_release(&tlb_spinlock);
         
 };
 void
@@ -496,27 +494,19 @@ vm_fault(int faulttype, vaddr_t faultaddress){
                 
                 }
             }
-            // lock_acquire(pte->pte_lock);
+            lock_acquire(pte->pte_lock);
             if(pte->state == IN_DISK){
                 swapin_page(as, faultaddress, pte);                
             }
-            // lock_release(pte->pte_lock);
 
-            // Add entry to tlb
-            spinlock_acquire(&tlb_spinlock);
+            ipi_broadcast(IPI_TLBSHOOTDOWN);
             spl = splhigh();
-            tlb_index = tlb_probe(faultaddress,0);
-            if(tlb_index >= 0){
-                // TLB fault
-                splx(spl);
-                panic("Duplicate tlb entry");
-            }
             int random_entry_lo;
             random_entry_lo = pte->physical_page_number;
             random_entry_lo = random_entry_lo | ((pte->permission & PF_W) | 1) << 9;
             tlb_random((uint32_t) faultaddress, random_entry_lo);
             splx(spl);
-            spinlock_release(&tlb_spinlock);
+            lock_release(pte->pte_lock);
             // Now we know that there is an entry in the TLB
             break;
         case VM_FAULT_READONLY:
@@ -524,15 +514,17 @@ vm_fault(int faulttype, vaddr_t faultaddress){
             if(!has_permission(faulttype,pte)){
                     lock_release(page_lock);
                     return EFAULT;
-                
                 }
 
-            // if(pte->state == IN_DISK){
-            //     swapin_page(as, faultaddress, pte);                
-            // }
+            lock_acquire(pte->pte_lock);
+            if(pte->state == IN_DISK){
+                swapin_page(as, faultaddress, pte);                
+            }
+            lock_release(pte->pte_lock);
 
 
-            spinlock_acquire(&tlb_spinlock);
+            // spinlock_acquire(&tlb_spinlock);
+            ipi_broadcast(IPI_TLBSHOOTDOWN);
             spl = splhigh();
             tlb_index = tlb_probe(faultaddress,0);
             KASSERT(tlb_index>=0);
@@ -541,7 +533,7 @@ vm_fault(int faulttype, vaddr_t faultaddress){
             entry_lo |= TLBLO_DIRTY;
             tlb_write(entry_hi, entry_lo, tlb_index);
             splx(spl);
-            spinlock_release(&tlb_spinlock);
+            // spinlock_release(&tlb_spinlock);
         break;
         default:
         return EFAULT;

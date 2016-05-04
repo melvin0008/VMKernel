@@ -1272,3 +1272,14 @@ void thread_wait_for_count(unsigned tc)
 	}
 	spinlock_release(&thread_count_lock);
 }
+
+void tlb_shootdown_all_cpus(struct addrspace *as, vaddr_t va){
+    struct cpu *c;
+    struct  tlbshootdown tl;
+    tl.as = as;
+    tl.va = va;
+    for (unsigned i=0; i < cpuarray_num(&allcpus); i++) {
+        c = cpuarray_get(&allcpus, i);
+        ipi_tlbshootdown(c, (const struct tlbshootdown *) &tl);
+    }
+}

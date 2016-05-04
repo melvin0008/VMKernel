@@ -63,8 +63,6 @@ struct coremap_entry
     // Swapping
     struct addrspace *as;
     vaddr_t va;
-    time_t sec;
-    uint32_t nanosec;
 };
 
 struct coremap_entry *coremap;

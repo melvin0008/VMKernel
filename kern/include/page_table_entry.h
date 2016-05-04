@@ -12,8 +12,8 @@ struct page_table_entry{
 
     bool state:1;   // physical page on disk / memory 
     struct page_table_entry* next;
-    // struct spinlock *pte_lock;
-    int disk_position;
+    struct lock *pte_lock;
+    unsigned disk_position;
 
 };
 

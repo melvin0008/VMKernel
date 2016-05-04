@@ -8,6 +8,6 @@ struct lock *copy_lock;
 
 unsigned get_clear_bit(void);
 void swap_disk_init(void);
-void memory_to_swapdisk(int cmap_index);
+void memory_to_swapdisk(int cmap_index, struct page_table_entry *pte);
 void swapdisk_to_memory(struct page_table_entry *pte, paddr_t paddr);
-int copy_swapdisk(int old_disk_position);
+void copy_swapdisk(unsigned old_disk_position, unsigned new_disk_position);
