@@ -41,7 +41,7 @@
 
 
 struct vnode;
-
+struct lock *pte_lock;
 /*
  * Address space - data structure associated with the virtual memory
  * space of a process.

@@ -11,18 +11,17 @@ struct page_table_entry{
     int permission:3;
 
     bool state:1;   // physical page on disk / memory 
-    bool valid:1;   // is page allocated
-    bool referenced:1;  // has the page been read / write recently
     struct page_table_entry* next;
-    struct lock *pte_lock;
-    unsigned disk_position;
+    // struct spinlock *pte_lock;
+    int disk_position;
 
 };
+
 
 struct page_table_entry *create_page_table_entry(vaddr_t vpn, paddr_t ppn, int permission);
 void destroy_page_table_entry(struct page_table_entry*);
 struct page_table_entry *copy_pt(struct addrspace *newas, struct page_table_entry *,int32_t *);
-struct page_table_entry *add_pte(struct addrspace *as, vaddr_t new_vaddr, int permission);
+struct page_table_entry *add_pte(struct addrspace *as, vaddr_t new_vaddr, paddr_t new_paddr,int permission);
 struct page_table_entry *search_pte(struct addrspace *as, vaddr_t va);
 bool remove_pte_for(struct addrspace *as, vaddr_t va);
 void destroy_pte_for(struct addrspace *as);

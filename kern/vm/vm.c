@@ -85,8 +85,10 @@ static void swapout_page(int cmap_index){
 }
 
 static void swapin_page(struct addrspace *as, vaddr_t va, struct page_table_entry *pte){
+    
     // Allocate a physical page
     paddr_t physical_page_addr = page_alloc(as, va);
+    pte->physical_page_number = physical_page_addr;
     // Find the swap slot using ste and
     // Copy stuff from disk to mem
     swapdisk_to_memory(pte, physical_page_addr);
@@ -164,18 +166,17 @@ static uint32_t get_victim_index(){
     uint32_t rstart = first_free_page + (random()%(total_num_pages-first_free_page));
     // kprintf("Rstart %d first free%d",rstart,first_free_page);
     for(i = rstart; i < total_num_pages; i++){
-        if(coremap[i].is_dirty)
+        if(coremap[i].is_dirty ){
             return i;
+        }
     }
     for(i = first_free_page; i < rstart; i++){
-        if(coremap[i].is_dirty)
+        if(coremap[i].is_dirty){
             return i;
+        }
     }
-    if(i == rstart){
-        // panic("Not a single user page to swapout !");
-        return 0;
-    }
-    return i;
+    
+    return 0;
 
 }
 
@@ -217,6 +218,7 @@ alloc_kpages(unsigned npages){
     KASSERT(npages>0);
     if(npages>1){
         //Multiple Pages
+        // lock_acquire()
         spinlock_acquire(&coremap_spinlock);
         
         p = find_continuous_block(false, npages);
@@ -250,13 +252,14 @@ alloc_kpages(unsigned npages){
                 break;
             }
         }
-        spinlock_release(&coremap_spinlock);
 
         if(i>=total_num_pages){
             // spinlock_release(&coremap_spinlock);
             // return 0;
             i = get_victim_index();
             if(i == 0){
+                spinlock_release(&coremap_spinlock);
+
                 // spinlock_release(&coremap_spinlock);
                 return 0;
             }
@@ -267,6 +270,7 @@ alloc_kpages(unsigned npages){
             p = i * PAGE_SIZE;
             bzero((void *)PADDR_TO_KVADDR(p), PAGE_SIZE);
         }
+        spinlock_release(&coremap_spinlock);
     }
 
     return PADDR_TO_KVADDR(p);
@@ -292,7 +296,6 @@ paddr_t page_alloc(struct addrspace *as, vaddr_t va){
             break;
         }
     }
-    spinlock_release(&coremap_spinlock);
 
     // Check if we don't have ane free page left
     if(i>=total_num_pages){
@@ -303,7 +306,7 @@ paddr_t page_alloc(struct addrspace *as, vaddr_t va){
         
         i = get_victim_index();
         if(i == 0){
-            // spinlock_release(&coremap_spinlock);
+            spinlock_release(&coremap_spinlock);
             return 0;
         }
         
@@ -318,6 +321,7 @@ paddr_t page_alloc(struct addrspace *as, vaddr_t va){
         set_cmap_dirty(&coremap[i], 1, as, va);
         bzero((void *)PADDR_TO_KVADDR(p), PAGE_SIZE);
     }
+    spinlock_release(&coremap_spinlock);
     return p;
 };
 
@@ -468,7 +472,7 @@ vm_fault(int faulttype, vaddr_t faultaddress){
     else{
         permission = addr_region->permission;
     }
-
+    lock_acquire(page_lock);
     pte = search_pte(as, faultaddress);
     switch(faulttype){
         case VM_FAULT_READ:
@@ -476,20 +480,27 @@ vm_fault(int faulttype, vaddr_t faultaddress){
             // 
             if(pte == NULL){
                 // Allocate a new page (handled in add_pte)
-                pte = add_pte(as, faultaddress, permission);
+                paddr_t new_paddr = page_alloc(as, faultaddress);
+                pte = add_pte(as, faultaddress, new_paddr,permission);
                 if(pte == NULL){
+                    lock_release(page_lock);
+                    
                     return ENOMEM;
                 }
             }
             else{
                 // Check if user has proper permission
                 if(!has_permission(faulttype,pte)){
+                    lock_release(page_lock);
                     return EFAULT;
+                
                 }
             }
+            // lock_acquire(pte->pte_lock);
             if(pte->state == IN_DISK){
                 swapin_page(as, faultaddress, pte);                
             }
+            // lock_release(pte->pte_lock);
 
             // Add entry to tlb
             spinlock_acquire(&tlb_spinlock);
@@ -511,12 +522,14 @@ vm_fault(int faulttype, vaddr_t faultaddress){
         case VM_FAULT_READONLY:
             KASSERT(pte!=NULL);
             if(!has_permission(faulttype,pte)){
+                    lock_release(page_lock);
                     return EFAULT;
+                
                 }
 
-            if(pte->state == IN_DISK){
-                swapin_page(as, faultaddress, pte);                
-            }
+            // if(pte->state == IN_DISK){
+            //     swapin_page(as, faultaddress, pte);                
+            // }
 
 
             spinlock_acquire(&tlb_spinlock);
@@ -533,6 +546,6 @@ vm_fault(int faulttype, vaddr_t faultaddress){
         default:
         return EFAULT;
     }
-
+    lock_release(page_lock);
     return 0;
 };
