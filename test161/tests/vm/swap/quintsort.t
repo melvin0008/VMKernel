@@ -11,9 +11,12 @@ sys161:
     enabled: true
 monitor:
   progresstimeout: 30.0
-  commandtimeout: 700.0
+  commandtimeout: 1100.0
+  window: 40
 misc:
   prompttimeout: 3600.0
+stat:
+  resolution: 0.1
 ---
 khu
 $ /testbin/quintsort
