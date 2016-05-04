@@ -45,6 +45,8 @@ struct cpu;
 /* get machine-dependent defs */
 #include <machine/thread.h>
 #include <kern/filehandle.h>
+#include <addrspace.h>
+
 
 
 /* Size of kernel stacks; must be power of 2 */
@@ -182,5 +184,7 @@ void thread_consider_migration(void);
 
 extern unsigned thread_count;
 void thread_wait_for_count(unsigned);
+
+void tlb_shootdown_all_cpus(struct addrspace *as, vaddr_t va);
 
 #endif /* _THREAD_H_ */

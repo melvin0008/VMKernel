@@ -142,6 +142,10 @@ sys_fork(struct trapframe *parent_tf, pid_t *retval){
     }
 
     struct proc *child_proc = proc_create_runprogram((const char *) "child_proc");
+    if(child_proc==NULL){
+        kfree(child_tf);
+        return ENOMEM;
+    }
     child_proc->ppid=curproc->pid;
 
     *child_tf = *parent_tf;

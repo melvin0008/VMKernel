@@ -86,8 +86,8 @@ as_copy(struct addrspace *old, struct addrspace **ret)
 	/*
 	 * Write this.
 	 */
-	int32_t retval_region;
-	int32_t retval_pte;
+	int32_t retval_region = 0;
+	int32_t retval_pte = 0;
 	newas->stack_end  = old->stack_end;
     newas->heap_start = old->heap_start;
     newas->heap_end = old->heap_end;
@@ -95,9 +95,9 @@ as_copy(struct addrspace *old, struct addrspace **ret)
     if(retval_region != 0){
     	return ENOMEM;
     }
-    newas->pte_head = copy_pt(old->pte_head,&retval_pte);
+    newas->pte_head = copy_pt(newas, old->pte_head,&retval_pte);
     if(retval_pte != 0){
-    	return ENOMEM;
+    	return retval_pte;
     }
 	*ret = newas;
 	return 0;
@@ -108,14 +108,13 @@ as_copy(struct addrspace *old, struct addrspace **ret)
 void
 as_destroy(struct addrspace *as)
 {
+	(void) as;
 	/*
 	 * Clean up as needed.
 	 */
     destroy_pte_for(as);
 	destroy_regions_for(as);
 	kfree(as);
-
-
 
 }
 

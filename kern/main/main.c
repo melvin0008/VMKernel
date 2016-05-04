@@ -47,6 +47,7 @@
 #include <device.h>
 #include <syscall.h>
 #include <vm.h>
+#include <swap_table_entry.h>
 #include <test.h>
 #include <kern/test161.h>
 #include <version.h>
@@ -127,6 +128,7 @@ boot(void)
 
 	/* Late phase of initialization. */
 	vm_bootstrap();
+	swap_disk_init();
 	kprintf_bootstrap();
 	thread_start_cpus();
 	test161_bootstrap();
