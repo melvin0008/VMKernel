@@ -37,8 +37,12 @@ struct page_table_entry
         as->pte_head = new_pte;
     }
     else{
-        new_pte->next = as->pte_head;
-        as->pte_head = new_pte;
+        struct page_table_entry* pte_entry = as->pte_head;
+        while(pte_entry->next != NULL){
+            pte_entry = pte_entry->next;
+        }
+        pte_entry->next = new_pte;
+        return pte_entry->next;
     }
     return new_pte;
 }
