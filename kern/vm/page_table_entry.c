@@ -60,11 +60,12 @@ page_table_entry *copy_pt(struct addrspace *newas, struct page_table_entry *old_
         return NULL;
     }
     KASSERT(old_pte!=NULL);
-    lock_acquire(page_lock);
     while(old_pte!=NULL){
+    lock_acquire(page_lock);
         struct page_table_entry *new_pte = add_pte(newas,old_pte->virtual_page_number,0,old_pte->permission);
         if(new_pte == NULL){
             *retval = ENOMEM;
+            lock_release(page_lock);
             return NULL;
         }
         if(old_pte->state == IN_DISK){
@@ -75,6 +76,7 @@ page_table_entry *copy_pt(struct addrspace *newas, struct page_table_entry *old_
             new_pte->physical_page_number = page_alloc(newas,new_pte->virtual_page_number);
             if(new_pte->physical_page_number == 0){
                 *retval = ENOMEM;
+                lock_release(page_lock);
                 return NULL;
             }
             
@@ -82,8 +84,8 @@ page_table_entry *copy_pt(struct addrspace *newas, struct page_table_entry *old_
         }
         new_pte->state = old_pte->state;
         old_pte = old_pte->next;
-    }
     lock_release(page_lock);
+    }
     return newas->pte_head;
 }
 

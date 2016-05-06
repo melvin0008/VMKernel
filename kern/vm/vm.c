@@ -192,7 +192,7 @@ alloc_kpages(unsigned npages){
 paddr_t page_alloc(struct addrspace *as, vaddr_t va){
     uint32_t i;
     paddr_t p;
-    KASSERT(lock_do_i_hold(page_lock));
+    // KASSERT(lock_do_i_hold(page_lock));
     spinlock_acquire(&coremap_spinlock);
     for( i = first_free_page; i < total_num_pages; i++){
         if(coremap[i].state == FREE){
@@ -420,6 +420,8 @@ vm_fault(int faulttype, vaddr_t faultaddress){
             else{
                 // Check if user has proper permission
                 if(!has_permission(faulttype,pte)){
+                    lock_release(page_lock);
+                    
                     return EFAULT;
                 }
             }
