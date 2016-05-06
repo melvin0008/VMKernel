@@ -19,6 +19,8 @@ create_page_table_entry(vaddr_t vpn, paddr_t ppn, int permission){
     pte->physical_page_number = ppn;
     pte->permission = permission;
     pte->state = IN_MEM;
+    pte->page_lock = lock_create("page_lock");
+    pte->page_cv = cv_create("page_cv");
     pte->busy = 0;
     pte->next = NULL;
     return pte;
