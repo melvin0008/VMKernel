@@ -11,7 +11,6 @@ struct page_table_entry{
     int permission:3;
     bool state:1;
     unsigned disk_position;
-    struct lock *lock;
     struct page_table_entry* next;
 
 };
