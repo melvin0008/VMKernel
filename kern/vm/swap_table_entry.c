@@ -50,6 +50,7 @@ void memory_to_swapdisk(paddr_t paddr,int disk_position){
 void swapdisk_to_memory(int disk_position, paddr_t paddr){
     struct uio user_io;
     struct iovec io_vec;
+    
     KASSERT(bitmap_isset(swap_bitmap, disk_position)!=0);
     uio_kinit(&io_vec, &user_io, (void *) PADDR_TO_KVADDR(paddr), PAGE_SIZE, disk_position * PAGE_SIZE,UIO_READ);
     int err = VOP_READ(swap_vn,&user_io);

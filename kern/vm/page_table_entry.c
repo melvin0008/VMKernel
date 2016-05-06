@@ -111,7 +111,7 @@ remove_pte_for(struct addrspace *as, vaddr_t va){
     struct page_table_entry *pte_entry = as->pte_head;
     struct page_table_entry *prev = pte_entry;
     vaddr_t vpn = va & PAGE_FRAME;
-
+    lock_acquire(page_lock);
     if(pte_entry != NULL && pte_entry->next == NULL && vpn == pte_entry->virtual_page_number){
         page_free(pte_entry->physical_page_number, pte_entry->virtual_page_number);
         kfree(pte_entry);
@@ -131,8 +131,10 @@ remove_pte_for(struct addrspace *as, vaddr_t va){
         pte_entry->next = NULL;
         page_free(pte_entry->physical_page_number, pte_entry->virtual_page_number);
         kfree(pte_entry);
+        lock_release(page_lock);
         return true;
     }
+    lock_release(page_lock);
 
     return false;
 }
@@ -140,6 +142,7 @@ remove_pte_for(struct addrspace *as, vaddr_t va){
 void
 destroy_pte_for(struct addrspace *as){
     struct page_table_entry *next;
+    lock_acquire(page_lock);
     while(as->pte_head != NULL){
         next = as->pte_head->next;
         as->pte_head->next = NULL;
@@ -154,4 +157,5 @@ destroy_pte_for(struct addrspace *as){
         kfree(as->pte_head);
         as->pte_head = next;
     }
+    lock_release(page_lock);
 }

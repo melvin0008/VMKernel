@@ -114,11 +114,10 @@ as_destroy(struct addrspace *as)
 	/*
 	 * Clean up as needed.
 	 */
-	lock_acquire(page_lock);
+	
     destroy_pte_for(as);
 	destroy_regions_for(as);
 	kfree(as);
-	lock_release(page_lock);
 }
 
 
