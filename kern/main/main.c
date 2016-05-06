@@ -128,9 +128,9 @@ boot(void)
 
 	/* Late phase of initialization. */
 	vm_bootstrap();
-	swap_disk_init();
 	kprintf_bootstrap();
 	thread_start_cpus();
+	swap_disk_init();
 	test161_bootstrap();
 
 	/* Default bootfs - but ignore failure, in case emu0 doesn't exist */

@@ -444,7 +444,6 @@ thread_start_cpus(void)
 	cpu_startup_sem = sem_create("cpu_hatch", 0);
 	thread_count_wchan = wchan_create("thread_count");
 	mainbus_start_cpus();
-
 	num_cpus = cpuarray_num(&allcpus);
 	for (i=0; i<num_cpus - 1; i++) {
 		P(cpu_startup_sem);
@@ -1190,6 +1189,17 @@ ipi_broadcast(int code)
 			ipi_send(c, code);
 		}
 	}
+}
+
+void tlb_shootdown_all_cpus(struct addrspace *as, vaddr_t va){
+    struct cpu *c;
+    struct  tlbshootdown tl;
+    tl.as = as;
+    tl.va = va;
+    for (unsigned i=0; i < cpuarray_num(&allcpus); i++) {
+        c = cpuarray_get(&allcpus, i);
+        ipi_tlbshootdown(c, (const struct tlbshootdown *) &tl);
+    }
 }
 
 void

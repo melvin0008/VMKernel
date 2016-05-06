@@ -63,8 +63,8 @@ struct coremap_entry
     // Swapping
     struct addrspace *as;
     vaddr_t va;
-    time_t sec;
-    uint32_t nanosec;
+    bool is_busy:1;
+    struct cpu *cmap_cpu;
 };
 
 struct coremap_entry *coremap;

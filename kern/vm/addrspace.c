@@ -37,6 +37,7 @@
 #include <elf.h>
 #include <machine/tlb.h>
 #include <spl.h>
+#include <swap_table_entry.h>
 
 /*
  * Note! If OPT_DUMBVM is set, as is the case until you start the VM
@@ -77,7 +78,11 @@ as_copy(struct addrspace *old, struct addrspace **ret)
 	// Create an exact copy of the passed address space structure and also copy every page.
 	// Feel free to implement Copy-On-Write (COW) page.
 	struct addrspace *newas;
-
+	// int flag;
+	// if(page_lock!=NULL && !lock_do_i_hold(page_lock)){
+ //        flag = 1;
+ //        lock_acquire(page_lock);
+ //    }
 	newas = as_create();
 	if (newas == NULL) {
 		return ENOMEM;
@@ -100,6 +105,10 @@ as_copy(struct addrspace *old, struct addrspace **ret)
     	return retval_pte;
     }
 	*ret = newas;
+	// if(flag==1 && page_lock!=NULL &&lock_do_i_hold(page_lock)){
+ //        lock_release(page_lock);
+ //    }
+
 	return 0;
 }
 
@@ -112,9 +121,13 @@ as_destroy(struct addrspace *as)
 	/*
 	 * Clean up as needed.
 	 */
+    // lock_acquire(page_lock);
+
     destroy_pte_for(as);
 	destroy_regions_for(as);
 	kfree(as);
+    // lock_release(page_lock);
+
 
 }
 
