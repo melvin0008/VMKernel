@@ -47,17 +47,22 @@ struct addrspace as;
 #define VM_FAULT_READ        0    /* A read was attempted */
 #define VM_FAULT_WRITE       1    /* A write was attempted */
 #define VM_FAULT_READONLY    2    /* A write to a readonly page was attempted*/
-
+#define FREE 0
+#define FIXED 1
+#define DIRTY 2
+#define CLEAN 3
 
 struct coremap_entry
 {
     // Page state booleans
-    bool is_free:1;
-    bool is_fixed:1;
-    bool is_dirty:1;
-    bool is_clean:1;
-    // To be used in k_free
+    int state:2;
     size_t chunk_size;
+
+    //swapping
+    struct addrspace *as;
+    vaddr_t va;
+    bool busy:1;
+    struct cpu *cpu;
 };
 
 struct coremap_entry *coremap;
@@ -75,7 +80,7 @@ void free_pages(paddr_t physical_page_addr, vaddr_t v_addr);
 vaddr_t alloc_kpages(unsigned npages);
 void free_kpages(vaddr_t addr);
 
-paddr_t page_alloc(void);
+paddr_t page_alloc(struct addrspace *as, vaddr_t v_addr);
 void page_free(paddr_t p_addr, vaddr_t v_addr);
 /*
  * Return amount of memory (in bytes) used by allocated coremap pages.  If
