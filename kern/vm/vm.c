@@ -348,7 +348,8 @@ vm_fault(int faulttype, vaddr_t faultaddress){
             // 
             if(pte == NULL){
                 // Allocate a new page (handled in add_pte)
-                pte = add_pte(as, faultaddress, permission);
+                paddr_t new_paddr = page_alloc();
+                pte = add_pte(as, faultaddress, new_paddr, permission);
                 if(pte == NULL){
                     return ENOMEM;
                 }
@@ -395,6 +396,5 @@ vm_fault(int faulttype, vaddr_t faultaddress){
         default:
         return EFAULT;
     }
-
     return 0;
 };
