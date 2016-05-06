@@ -115,7 +115,13 @@ remove_pte_for(struct addrspace *as, vaddr_t va){
     vaddr_t vpn = va & PAGE_FRAME;
     lock_acquire(page_lock);
     if(pte_entry != NULL && pte_entry->next == NULL && vpn == pte_entry->virtual_page_number){
-        page_free(pte_entry->physical_page_number, pte_entry->virtual_page_number);
+        if(pte_entry->state == IN_MEM){
+            page_free(pte_entry->physical_page_number, pte_entry->virtual_page_number);
+        }
+        else{
+            KASSERT(bitmap_isset(swap_bitmap,as->pte_head->disk_position)!=0);
+            bitmap_unmark(swap_bitmap,as->pte_head->disk_position);
+        }
         kfree(pte_entry);
         as->pte_head = NULL;
     }
@@ -131,7 +137,13 @@ remove_pte_for(struct addrspace *as, vaddr_t va){
     if(pte_entry != NULL){
         prev->next = pte_entry->next;
         pte_entry->next = NULL;
-        page_free(pte_entry->physical_page_number, pte_entry->virtual_page_number);
+        if(pte_entry->state == IN_MEM){
+            page_free(pte_entry->physical_page_number, pte_entry->virtual_page_number);
+        }
+        else{
+            KASSERT(bitmap_isset(swap_bitmap,as->pte_head->disk_position)!=0);
+            bitmap_unmark(swap_bitmap,as->pte_head->disk_position);
+        }
         kfree(pte_entry);
         lock_release(page_lock);
         return true;
@@ -144,7 +156,7 @@ remove_pte_for(struct addrspace *as, vaddr_t va){
 void
 destroy_pte_for(struct addrspace *as){
     struct page_table_entry *next;
-    lock_acquire(page_lock);
+    // lock_acquire(page_lock);
     while(as->pte_head != NULL){
         next = as->pte_head->next;
         as->pte_head->next = NULL;
@@ -159,5 +171,5 @@ destroy_pte_for(struct addrspace *as){
         kfree(as->pte_head);
         as->pte_head = next;
     }
-    lock_release(page_lock);
+    // lock_release(page_lock);
 }
