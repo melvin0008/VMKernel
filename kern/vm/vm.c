@@ -13,11 +13,18 @@
 #include <cpu.h>
 #include <spl.h>
 #include <machine/tlb.h>
+#include <swap_table_entry.h>
+
 
 static struct spinlock coremap_spinlock;
 static struct spinlock tlb_spinlock;
 static uint32_t total_num_pages;
 static uint32_t first_free_page;
+
+
+static void swapout_page(int cmap_index);
+static void swapin_page(paddr_t paddr, struct page_table_entry *pte);
+static void invalidate_tlb(vaddr_t v_addr);
 
 
 /*
@@ -44,10 +51,11 @@ static void set_cmap_free(struct coremap_entry *cmap , size_t chunk_size, struct
 
 static void set_cmap_dirty(struct coremap_entry *cmap , size_t chunk_size, struct addrspace *as, vaddr_t va){
     set_cmap_entry(cmap,DIRTY,chunk_size,as,va);
+    cmap->cpu = curcpu;
 }
 
 static void set_busy(struct coremap_entry *cmap, bool is_busy){
-    KASSERT(cmap->busy!= is_busy);
+    // KASSERT(cmap->busy!= is_busy);
     cmap->busy = is_busy;
 }
 // static void set_cmap_clean(struct coremap_entry *cmap , size_t chunk_size){
@@ -60,7 +68,7 @@ CoreMap functions END
 */
 
 
-static void invalidate_tlb(vaddr_t v_addr){
+void invalidate_tlb(vaddr_t v_addr){
 
     spinlock_acquire(&tlb_spinlock);
     int spl = splhigh(); 
@@ -70,6 +78,25 @@ static void invalidate_tlb(vaddr_t v_addr){
         }
     splx(spl);
     spinlock_release(&tlb_spinlock);
+}
+
+static uint32_t get_victim(){
+    uint32_t i;
+    uint32_t rstart = first_free_page + (random()%(total_num_pages-first_free_page));
+    for(i = rstart; i < total_num_pages; i++){
+        if((coremap[i].state ==DIRTY) && !coremap[i].busy ){
+            coremap[i].busy = 1;
+            return i;
+        }
+    }
+    for(i = first_free_page; i < rstart; i++){
+        if((coremap[i].state ==DIRTY) && !coremap[i].busy){
+            coremap[i].busy = 1;
+            return i;
+        }
+    }
+    panic("Should have decided some index by now");
+    return 0;
 }
 
 //Ref :
@@ -93,6 +120,7 @@ init_coremap(){
         set_cmap_fixed(&coremap[index],1,NULL, PADDR_TO_KVADDR(index * PAGE_SIZE) );
     }
     for(index = first_free_page ; index < total_num_pages; index ++ ){
+        set_busy(&coremap[index],0);
         set_cmap_free(&coremap[index],0,NULL,0);
     }
 }
@@ -126,21 +154,37 @@ alloc_kpages(unsigned npages){
             }
         }
         if(found_section && j-start_page == npages){
+            set_busy(&coremap[start_page],1);
             set_cmap_fixed(&coremap[start_page],npages,NULL,PADDR_TO_KVADDR(start_page*PAGE_SIZE));
             for (uint32_t i = start_page+1; i < npages+start_page; i++){
+                set_busy(&coremap[i],1);
                 set_cmap_fixed(&coremap[i],0,NULL, PADDR_TO_KVADDR(i* PAGE_SIZE));
             }       
             p = start_page * PAGE_SIZE;
-            spinlock_release(&coremap_spinlock);
             bzero((void *)PADDR_TO_KVADDR(p), npages * PAGE_SIZE);
             break;
         }
     }
+    spinlock_release(&coremap_spinlock);
     if(i>=total_num_pages){
-       spinlock_release(&coremap_spinlock);
-       return 0;
+        if(is_swapping){
+            KASSERT(npages==1);
+            spinlock_acquire(&coremap_spinlock);
+            //get_victim
+            uint32_t victim =  get_victim();
+            //swapout
+            swapout_page(victim);
+            set_cmap_fixed(&coremap[victim],1,NULL, PADDR_TO_KVADDR(victim* PAGE_SIZE));
+            p = victim * PAGE_SIZE;
+            bzero((void *)PADDR_TO_KVADDR(p), npages * PAGE_SIZE);
+            set_busy(&coremap[victim],1);
+            spinlock_release(&coremap_spinlock);
+        }
+        else{
+            return 0;  
+        }
     }
-    
+
     return PADDR_TO_KVADDR(p);
 };
 
@@ -148,6 +192,7 @@ alloc_kpages(unsigned npages){
 paddr_t page_alloc(struct addrspace *as, vaddr_t va){
     uint32_t i;
     paddr_t p;
+    KASSERT(lock_do_i_hold(page_lock));
     spinlock_acquire(&coremap_spinlock);
     for( i = first_free_page; i < total_num_pages; i++){
         if(coremap[i].state == FREE){
@@ -159,8 +204,22 @@ paddr_t page_alloc(struct addrspace *as, vaddr_t va){
     }
     spinlock_release(&coremap_spinlock);
     if(i>=total_num_pages){
-        // panic("No Page left");
-        return 0;
+        if(is_swapping){
+            spinlock_acquire(&coremap_spinlock);
+            // get_victim
+            uint32_t victim =  get_victim();
+            //swapout
+            swapout_page(victim);
+            set_cmap_dirty(&coremap[victim],1,as, va);
+            p = victim * PAGE_SIZE;
+            bzero((void *)PADDR_TO_KVADDR(p), 1 * PAGE_SIZE);
+            set_busy(&coremap[victim],0);
+            spinlock_release(&coremap_spinlock);
+        }
+        else{
+
+            return 0;
+        }
     }
     return p;
 };
@@ -179,9 +238,10 @@ free_kpages(vaddr_t v_addr){
     size_t chunk_size = coremap[cmap_index].chunk_size;
     // Check if we are freeing a valid chunk
     KASSERT(chunk_size != 0);
-    
+    KASSERT(coremap[cmap_index].busy==1);
     last_index = (cmap_index+chunk_size);
     for(; cmap_index <last_index ; cmap_index ++){
+        set_busy(&coremap[cmap_index],0);
         set_cmap_free(&coremap[cmap_index],0,NULL,0);
     }
     spinlock_release(&coremap_spinlock);
@@ -199,13 +259,56 @@ void page_free(paddr_t physical_page_addr, vaddr_t v_addr){
     size_t chunk_size = coremap[cmap_index].chunk_size;
     // Check if we are freeing a valid chunk
     KASSERT(chunk_size != 0);
+    KASSERT(coremap[cmap_index].busy==0);
     set_cmap_free(&coremap[cmap_index],0,NULL,0);
     spinlock_release(&coremap_spinlock);
     invalidate_tlb(v_addr);
 
 };
 
+void swapout_page(int cmap_index){
 
+    struct coremap_entry cmap_entry = coremap[cmap_index];
+    struct page_table_entry *pte = search_pte(cmap_entry.as, cmap_entry.va);
+    KASSERT(pte != NULL);
+    // Shootdown tlb entry
+    if(cmap_entry.cpu == curcpu){
+
+        invalidate_tlb(cmap_entry.va);
+    }
+    else{
+        KASSERT(cmap_entry.cpu!=NULL);
+        struct tlbshootdown tl;
+        tl.as = cmap_entry.as;
+        tl.va = cmap_entry.va;
+        ipi_tlbshootdown(cmap_entry.cpu,(const struct tlbshootdown *) &tl);
+    }
+    KASSERT(coremap[cmap_index].busy==1);
+    coremap[cmap_index].cpu = NULL;
+    KASSERT((unsigned)(cmap_index * PAGE_SIZE) == pte->physical_page_number);
+    // Copy contents from mem to disk
+    spinlock_release(&coremap_spinlock);
+    memory_to_swapdisk(pte->physical_page_number,pte->disk_position);
+    spinlock_acquire(&coremap_spinlock);
+    pte->state = IN_DISK;
+    pte->physical_page_number = 0;
+    set_cmap_free(&coremap[cmap_index],1,NULL,0);
+    bzero((void*) PADDR_TO_KVADDR(cmap_index*PAGE_SIZE),PAGE_SIZE);    
+}
+
+void swapin_page(paddr_t paddr, struct page_table_entry *pte){
+    
+    // Allocate a physical page
+    // Find the swap slot using ste and
+    // Copy stuff from disk to mem
+    uint32_t cmap_index = paddr/ PAGE_SIZE ;
+    KASSERT(coremap[cmap_index].state!= FIXED);
+    set_busy(&coremap[cmap_index],1);
+    swapdisk_to_memory(pte->disk_position, paddr);
+    // Update the pte to indicate that the page is now in memory
+    pte->physical_page_number = paddr;
+    pte->state = IN_MEM;
+}
 
 
 unsigned int
@@ -255,12 +358,12 @@ is_addr_in_stack_or_heap(struct addrspace *as, vaddr_t addr){
 static bool
 has_permission(int faulttype, struct page_table_entry *pte){
     if(faulttype == VM_FAULT_READ){
-        if(pte->permission & PF_R){
+        if((pte->permission & PF_R)==PF_R){
             return true;
         }
     }
     else if (faulttype == VM_FAULT_WRITE || faulttype == VM_FAULT_READONLY){
-     if(pte->permission & PF_W){
+     if((pte->permission & PF_W) == PF_W){
             return true;
         }   
     }
@@ -290,6 +393,7 @@ vm_fault(int faulttype, vaddr_t faultaddress){
     bool is_stack_or_heap = is_addr_in_stack_or_heap(as, faultaddress);
     int permission, tlb_index, spl;
     if(addr_region==NULL && !is_stack_or_heap){
+            
             return EFAULT;
     }
     if(addr_region == NULL){
@@ -298,7 +402,7 @@ vm_fault(int faulttype, vaddr_t faultaddress){
     else{
         permission = addr_region->permission;
     }
-
+    lock_acquire(page_lock);
     pte = search_pte(as, faultaddress);
     switch(faulttype){
         case VM_FAULT_READ:
@@ -309,6 +413,7 @@ vm_fault(int faulttype, vaddr_t faultaddress){
                 paddr_t new_paddr = page_alloc(as,faultaddress);
                 pte = add_pte(as, faultaddress, new_paddr, permission);
                 if(pte == NULL){
+                    lock_release(page_lock);
                     return ENOMEM;
                 }
             }
@@ -318,6 +423,23 @@ vm_fault(int faulttype, vaddr_t faultaddress){
                     return EFAULT;
                 }
             }
+
+            if(pte->state == IN_DISK){
+                //pagealloc
+                KASSERT(pte->physical_page_number==0);
+                paddr_t new_paddr = page_alloc(as,faultaddress);
+                //swapin
+                swapin_page(new_paddr,pte);
+                KASSERT(pte->physical_page_number!=0); 
+                KASSERT(pte->virtual_page_number==faultaddress); 
+                set_busy(&coremap[new_paddr/PAGE_SIZE],0);
+                //set clean
+
+            }
+            if((permission & PF_W) == PF_W){
+                //set dirty
+            }
+
             // Add entry to tlb
             
             spinlock_acquire(&tlb_spinlock);
@@ -342,6 +464,7 @@ vm_fault(int faulttype, vaddr_t faultaddress){
         case VM_FAULT_READONLY:
             KASSERT(pte!=NULL);
             if(!has_permission(faulttype,pte)){
+                    lock_release(page_lock);
                     return EFAULT;
                 }
             spinlock_acquire(&tlb_spinlock);
@@ -361,5 +484,6 @@ vm_fault(int faulttype, vaddr_t faultaddress){
         default:
         return EFAULT;
     }
+    lock_release(page_lock);
     return 0;
 };

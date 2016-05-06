@@ -351,6 +351,7 @@ file      vm/kmalloc.c
 
 file      vm/vm.c
 file      vm/page_table_entry.c
+file      vm/swap_table_entry.c
 file      vm/addrspace_region.c
 
 optofffile dumbvm   vm/addrspace.c

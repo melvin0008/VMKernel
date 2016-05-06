@@ -10,9 +10,8 @@ struct page_table_entry{
     paddr_t physical_page_number;
     int permission:3;
     bool state:1;
-    bool busy:1;
-    struct cv page_cv;
-    struct lock page_lock;
+    unsigned disk_position;
+    struct lock *lock;
     struct page_table_entry* next;
 
 };

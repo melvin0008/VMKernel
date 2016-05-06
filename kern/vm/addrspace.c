@@ -37,6 +37,8 @@
 #include <elf.h>
 #include <machine/tlb.h>
 #include <spl.h>
+#include <synch.h>
+#include <swap_table_entry.h>
 
 /*
  * Note! If OPT_DUMBVM is set, as is the case until you start the VM
@@ -108,15 +110,15 @@ as_copy(struct addrspace *old, struct addrspace **ret)
 void
 as_destroy(struct addrspace *as)
 {
+	(void) as;
 	/*
 	 * Clean up as needed.
 	 */
+	lock_acquire(page_lock);
     destroy_pte_for(as);
 	destroy_regions_for(as);
 	kfree(as);
-
-
-
+	lock_release(page_lock);
 }
 
 

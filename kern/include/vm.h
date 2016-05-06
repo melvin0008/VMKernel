@@ -55,7 +55,7 @@ struct addrspace as;
 struct coremap_entry
 {
     // Page state booleans
-    int state:2;
+    int state;
     size_t chunk_size;
 
     //swapping
