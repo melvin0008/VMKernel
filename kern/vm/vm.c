@@ -55,15 +55,15 @@ static void set_cmap_dirty(struct coremap_entry *cmap , size_t chunk_size, struc
     set_cmap_entry(cmap,DIRTY,chunk_size,as,va);
     cmap->cpu = curcpu;
 }
+static void set_cmap_clean(struct coremap_entry *cmap , size_t chunk_size, struct addrspace *as, vaddr_t va){
+    set_cmap_entry(cmap,CLEAN,chunk_size,as,va);
+    cmap->cpu = curcpu;
+}
 
 static void set_busy(struct coremap_entry *cmap, bool is_busy){
     // KASSERT(cmap->busy!= is_busy);
     cmap->busy = is_busy;
 }
-// static void set_cmap_clean(struct coremap_entry *cmap , size_t chunk_size){
-//     set_cmap_entry(&cmap,false,false,false,true,chunk_size);
-// }
-
 
 /*
 CoreMap functions END
@@ -101,6 +101,18 @@ static uint32_t get_victim(){
     }
     for(i = first_free_page; i < rstart; i++){
         if((coremap[i].state ==DIRTY) && !coremap[i].busy){
+            coremap[i].busy = 1;
+            return i;
+        }
+    }
+     for(i = rstart; i < total_num_pages; i++){
+        if(coremap[i].state == CLEAN && !coremap[i].busy ){
+            coremap[i].busy = 1;
+            return i;
+        }
+    }
+    for(i = first_free_page; i < rstart; i++){
+        if(coremap[i].state == CLEAN && !coremap[i].busy){
             coremap[i].busy = 1;
             return i;
         }
@@ -312,9 +324,11 @@ void swapout_page(int cmap_index){
     coremap[cmap_index].tlbid = -1;
     KASSERT((unsigned)(cmap_index * PAGE_SIZE) == pte->physical_page_number);
     // Copy contents from mem to disk
-    spinlock_release(&coremap_spinlock);
-    memory_to_swapdisk(pte->physical_page_number,pte->disk_position);
-    spinlock_acquire(&coremap_spinlock);
+    if(coremap[cmap_index].state == DIRTY){
+        spinlock_release(&coremap_spinlock);
+        memory_to_swapdisk(pte->physical_page_number,pte->disk_position);
+        spinlock_acquire(&coremap_spinlock);
+    }
     pte->state = IN_DISK;
     pte->physical_page_number = 0;
     set_cmap_free(&coremap[cmap_index],1,NULL,0);
@@ -478,10 +492,17 @@ vm_fault(int faulttype, vaddr_t faultaddress){
                 KASSERT(pte->virtual_page_number==faultaddress); 
                 set_busy(&coremap[new_paddr/PAGE_SIZE],0);
                 //set clean
+                if((permission & PF_R )== PF_R)
+                {
+                    set_cmap_clean(&coremap[pte->physical_page_number/PAGE_SIZE],1,as,faultaddress);    
+                }
 
             }
-            if((permission & PF_W) == PF_W){
+            if(is_swapping && (permission & PF_W) == PF_W){
                 //set dirty
+                set_busy(&coremap[pte->physical_page_number/PAGE_SIZE],1);
+                set_cmap_dirty(&coremap[pte->physical_page_number/PAGE_SIZE],1,as,faultaddress);   
+                set_busy(&coremap[pte->physical_page_number/PAGE_SIZE],0);
             }
 
             // Add entry to tlb
