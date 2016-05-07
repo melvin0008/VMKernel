@@ -41,12 +41,14 @@ static void set_cmap_entry(struct coremap_entry *cmap, int state , size_t chunk_
 static void set_cmap_fixed(struct coremap_entry *cmap , size_t chunk_size, struct addrspace *as, vaddr_t va){
     set_cmap_entry(cmap,FIXED,chunk_size,as,va);
     cmap->cpu = NULL;
+    cmap->tlbid = -1;
 }
 
 
 static void set_cmap_free(struct coremap_entry *cmap , size_t chunk_size, struct addrspace *as, vaddr_t va){
     set_cmap_entry(cmap,FREE,chunk_size,as,va);
     cmap->cpu = NULL;
+    cmap->tlbid = -1;
 }
 
 static void set_cmap_dirty(struct coremap_entry *cmap , size_t chunk_size, struct addrspace *as, vaddr_t va){
@@ -69,14 +71,22 @@ CoreMap functions END
 
 
 void invalidate_tlb(vaddr_t v_addr){
-
+    uint32_t elo, ehi;
+    paddr_t pa;
     spinlock_acquire(&tlb_spinlock);
-    int spl = splhigh(); 
+    // int spl = splhigh(); 
         int tlb_index = tlb_probe(v_addr & PAGE_FRAME,0);
         if(tlb_index >= 0){
+            tlb_read(&ehi, &elo, tlb_index);
+            if(elo){
+                pa=elo & PAGE_FRAME;
+                KASSERT(pa!=0);
+                coremap[pa/PAGE_SIZE].tlbid = -1;
+                coremap[pa/PAGE_SIZE].cpu = NULL;
+            }
             tlb_write(TLBHI_INVALID(tlb_index), TLBLO_INVALID(), tlb_index);
         }
-    splx(spl);
+    // splx(spl);
     spinlock_release(&tlb_spinlock);
 }
 
@@ -118,10 +128,14 @@ init_coremap(){
     for(index = 0; index < first_free_page ; index ++ ){
         set_busy(&coremap[index],1);
         set_cmap_fixed(&coremap[index],1,NULL, PADDR_TO_KVADDR(index * PAGE_SIZE) );
+        coremap[index].cpu = NULL;
+        coremap[index].tlbid = -1 ;
     }
     for(index = first_free_page ; index < total_num_pages; index ++ ){
         set_busy(&coremap[index],0);
         set_cmap_free(&coremap[index],0,NULL,0);
+        coremap[index].cpu = NULL;
+        coremap[index].tlbid = -1;
     }
 }
 
@@ -197,6 +211,8 @@ paddr_t page_alloc(struct addrspace *as, vaddr_t va){
     for( i = first_free_page; i < total_num_pages; i++){
         if(coremap[i].state == FREE){
             set_cmap_dirty(&coremap[i],1,as,va);
+            coremap[i].cpu = NULL;
+            coremap[i].tlbid = -1;
             p = i * PAGE_SIZE;
             bzero((void *)PADDR_TO_KVADDR(p), PAGE_SIZE);
             break;
@@ -210,6 +226,8 @@ paddr_t page_alloc(struct addrspace *as, vaddr_t va){
             uint32_t victim =  get_victim();
             //swapout
             swapout_page(victim);
+            coremap[victim].cpu = NULL;
+            coremap[victim].tlbid = -1;
             set_cmap_dirty(&coremap[victim],1,as, va);
             p = victim * PAGE_SIZE;
             bzero((void *)PADDR_TO_KVADDR(p), 1 * PAGE_SIZE);
@@ -272,19 +290,26 @@ void swapout_page(int cmap_index){
     struct page_table_entry *pte = search_pte(cmap_entry.as, cmap_entry.va);
     KASSERT(pte != NULL);
     // Shootdown tlb entry
-    if(cmap_entry.cpu == curcpu){
+    if(coremap[cmap_index].tlbid>=0){
+        if(cmap_entry.cpu == curcpu){
+            invalidate_tlb(cmap_entry.va);
+        }
+        else{
+            KASSERT(cmap_entry.cpu!=NULL);
+            struct tlbshootdown tl;
+            tl.cmap_index = cmap_index;
+            tl.tlbid = coremap[cmap_index].tlbid;
 
-        invalidate_tlb(cmap_entry.va);
-    }
-    else{
-        KASSERT(cmap_entry.cpu!=NULL);
-        struct tlbshootdown tl;
-        tl.as = cmap_entry.as;
-        tl.va = cmap_entry.va;
-        ipi_tlbshootdown(cmap_entry.cpu,(const struct tlbshootdown *) &tl);
+            ipi_tlbshootdown(coremap[cmap_index].cpu,(const struct tlbshootdown *) &tl);
+            while(coremap[cmap_index].tlbid!=-1){
+                //This is like a JS callback
+            }
+            KASSERT(coremap[cmap_index].tlbid==-1);
+        }
     }
     KASSERT(coremap[cmap_index].busy==1);
     coremap[cmap_index].cpu = NULL;
+    coremap[cmap_index].tlbid = -1;
     KASSERT((unsigned)(cmap_index * PAGE_SIZE) == pte->physical_page_number);
     // Copy contents from mem to disk
     spinlock_release(&coremap_spinlock);
@@ -328,23 +353,40 @@ coremap_used_bytes(void){
 
 void 
 vm_tlbshootdown_all(void){
-    int i, spl;
+    int i;
 
     /* Disable interrupts on this CPU while frobbing the TLB. */
     spinlock_acquire(&tlb_spinlock);
-    spl = splhigh();
+    // spl = splhigh();
 
     for (i=0; i<NUM_TLB; i++) {
         tlb_write(TLBHI_INVALID(i), TLBLO_INVALID(), i);
     }
 
-    splx(spl);
+    // splx(spl);
     spinlock_release(&tlb_spinlock);
         
 };
+
 void
 vm_tlbshootdown(const struct tlbshootdown *tlb){
-    (void) tlb;
+    uint32_t entry_lo, entry_hi;
+    paddr_t paddr;
+    spinlock_acquire(&tlb_spinlock);
+    int index = tlb->cmap_index;
+    if(coremap[index].cpu==curcpu && coremap[index].tlbid==tlb->tlbid ){
+        tlb_read(&entry_hi, &entry_lo, tlb->tlbid);
+        if(entry_lo){
+            paddr=entry_lo & PAGE_FRAME;
+            KASSERT(paddr!=0);
+            coremap[paddr/PAGE_SIZE].tlbid = -1;
+            coremap[paddr/PAGE_SIZE].cpu = NULL;
+        }
+        tlb_write(TLBHI_INVALID(tlb->tlbid), TLBLO_INVALID(), tlb->tlbid);
+        coremap[index].tlbid=-1;
+    }
+    spinlock_release(&tlb_spinlock);
+
 };
 
 static bool
@@ -391,7 +433,7 @@ vm_fault(int faulttype, vaddr_t faultaddress){
     struct addrspace_region *addr_region = get_region_for(as, faultaddress);
     struct page_table_entry *pte;
     bool is_stack_or_heap = is_addr_in_stack_or_heap(as, faultaddress);
-    int permission, tlb_index, spl;
+    int permission, tlb_index;
     if(addr_region==NULL && !is_stack_or_heap){
             
             return EFAULT;
@@ -444,22 +486,19 @@ vm_fault(int faulttype, vaddr_t faultaddress){
 
             // Add entry to tlb
             
-            spinlock_acquire(&tlb_spinlock);
-            spl = splhigh();
+            spinlock_acquire(&coremap_spinlock);
             tlb_index = tlb_probe(faultaddress,0);
-            if(tlb_index >= 0){
-                // TLB fault
-                splx(spl);
-                panic("Duplicate tlb entry");
-            }
+            KASSERT(tlb_index==-1);
             int random_entry_lo;
             random_entry_lo = pte->physical_page_number;
             random_entry_lo = random_entry_lo | ((pte->permission & PF_W) | 1) << 9;
             tlb_random((uint32_t) faultaddress, random_entry_lo);
-            splx(spl);
-            spinlock_release(&tlb_spinlock);
-            spinlock_acquire(&coremap_spinlock);
+            tlb_index = tlb_probe(faultaddress,0);
+            KASSERT(tlb_index>=0);
+            coremap[pte->physical_page_number/PAGE_SIZE].tlbid = tlb_index;
             coremap[pte->physical_page_number/PAGE_SIZE].cpu = curcpu;
+            
+            set_busy(&coremap[pte->physical_page_number/PAGE_SIZE],0);
             spinlock_release(&coremap_spinlock);
             // Now we know that there is an entry in the TLB
             break;
@@ -469,17 +508,14 @@ vm_fault(int faulttype, vaddr_t faultaddress){
                     lock_release(page_lock);
                     return EFAULT;
                 }
-            spinlock_acquire(&tlb_spinlock);
-            spl = splhigh();
+            spinlock_acquire(&coremap_spinlock  );
             tlb_index = tlb_probe(faultaddress,0);
             KASSERT(tlb_index>=0);
             uint32_t entry_hi, entry_lo;
             tlb_read(&entry_hi, &entry_lo, tlb_index);
             entry_lo |= TLBLO_DIRTY;
             tlb_write(entry_hi, entry_lo, tlb_index);
-            splx(spl);
-            spinlock_release(&tlb_spinlock);
-            spinlock_acquire(&coremap_spinlock);
+            coremap[pte->physical_page_number/PAGE_SIZE].tlbid = tlb_index;
             coremap[pte->physical_page_number/PAGE_SIZE].cpu = curcpu;
             spinlock_release(&coremap_spinlock);
         break;

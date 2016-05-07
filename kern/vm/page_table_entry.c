@@ -7,7 +7,7 @@
 #include <swap_table_entry.h>
 #include <bitmap.h>
 
-// static char kernel_buffer[PAGE_SIZE];
+static char kernel_buffer[PAGE_SIZE];
 // Create and init
 
 
@@ -73,14 +73,14 @@ page_table_entry *copy_pt(struct addrspace *newas, struct page_table_entry *old_
             new_pte->physical_page_number = 0;
         }
         else{
+            memmove((void *) kernel_buffer,(void *) PADDR_TO_KVADDR(old_pte->physical_page_number),PAGE_SIZE);
             new_pte->physical_page_number = page_alloc(newas,new_pte->virtual_page_number);
             if(new_pte->physical_page_number == 0){
                 *retval = ENOMEM;
                 lock_release(page_lock);
                 return NULL;
             }
-            
-            memmove((void *) PADDR_TO_KVADDR(new_pte->physical_page_number),(void *) PADDR_TO_KVADDR(old_pte->physical_page_number),PAGE_SIZE);
+            memmove((void *) PADDR_TO_KVADDR(new_pte->physical_page_number),(void *) kernel_buffer,PAGE_SIZE);
         }
         new_pte->state = old_pte->state;
         old_pte = old_pte->next;

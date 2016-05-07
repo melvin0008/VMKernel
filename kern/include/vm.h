@@ -63,6 +63,7 @@ struct coremap_entry
     vaddr_t va;
     bool busy:1;
     struct cpu *cpu;
+    int tlbid;
 };
 
 struct coremap_entry *coremap;
