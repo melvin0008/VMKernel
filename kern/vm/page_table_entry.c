@@ -7,12 +7,13 @@
 #include <swap_table_entry.h>
 #include <bitmap.h>
 
-// static char kernel_buffer[PAGE_SIZE];
+static char kernel_buffer[PAGE_SIZE];
 // Create and init
 
 
 struct page_table_entry*
 create_page_table_entry(vaddr_t vpn, paddr_t ppn, int permission){
+    KASSERT(lock_do_i_hold(page_lock));
 
     struct page_table_entry *pte = kmalloc(sizeof(*pte));
     if (pte == NULL) {
@@ -34,8 +35,12 @@ create_page_table_entry(vaddr_t vpn, paddr_t ppn, int permission){
 
 struct page_table_entry
 *add_pte(struct addrspace *as, vaddr_t new_vaddr, paddr_t new_paddr,int permission){
+    KASSERT(lock_do_i_hold(page_lock));
+
+    lock_acquire(create_lock);
     struct page_table_entry *new_pte = create_page_table_entry(new_vaddr,new_paddr,permission);
     if(new_pte == NULL){
+        lock_release(create_lock);
         return NULL;
     }
     if(as->pte_head == NULL){
@@ -47,21 +52,25 @@ struct page_table_entry
             pte_entry = pte_entry->next;
         }
         pte_entry->next = new_pte;
+        lock_release(create_lock);
+
         return pte_entry->next;
     }
+    lock_release(create_lock);
     return new_pte;
 }
 
 struct
 page_table_entry *copy_pt(struct addrspace *newas, struct page_table_entry *old_pte , int32_t *retval){    
     
+    lock_acquire(page_lock);
     if(old_pte == NULL){
         *retval = 0;
+        lock_release(page_lock);
         return NULL;
     }
     KASSERT(old_pte!=NULL);
     while(old_pte!=NULL){
-    lock_acquire(page_lock);
         struct page_table_entry *new_pte = add_pte(newas,old_pte->virtual_page_number,0,old_pte->permission);
         if(new_pte == NULL){
             *retval = ENOMEM;
@@ -73,6 +82,7 @@ page_table_entry *copy_pt(struct addrspace *newas, struct page_table_entry *old_
             new_pte->physical_page_number = 0;
         }
         else{
+            memmove((void *) kernel_buffer,(void *) PADDR_TO_KVADDR(old_pte->physical_page_number),PAGE_SIZE);
             new_pte->physical_page_number = page_alloc(newas,new_pte->virtual_page_number);
             if(new_pte->physical_page_number == 0){
                 *retval = ENOMEM;
@@ -80,12 +90,12 @@ page_table_entry *copy_pt(struct addrspace *newas, struct page_table_entry *old_
                 return NULL;
             }
             
-            memmove((void *) PADDR_TO_KVADDR(new_pte->physical_page_number),(void *) PADDR_TO_KVADDR(old_pte->physical_page_number),PAGE_SIZE);
+            memmove((void *) PADDR_TO_KVADDR(new_pte->physical_page_number),(void *) kernel_buffer,PAGE_SIZE);
         }
         new_pte->state = old_pte->state;
         old_pte = old_pte->next;
-    lock_release(page_lock);
     }
+    lock_release(page_lock);
     return newas->pte_head;
 }
 
@@ -96,6 +106,8 @@ void destroy_page_table_entry(struct page_table_entry *pte){
 
 struct page_table_entry * 
 search_pte(struct addrspace *as, vaddr_t va){
+    KASSERT(lock_do_i_hold(page_lock));
+    
     struct page_table_entry *pte_entry = as->pte_head;
     vaddr_t vpn = va & PAGE_FRAME;
 
@@ -110,10 +122,10 @@ search_pte(struct addrspace *as, vaddr_t va){
 
 bool
 remove_pte_for(struct addrspace *as, vaddr_t va){
+    lock_acquire(page_lock);
     struct page_table_entry *pte_entry = as->pte_head;
     struct page_table_entry *prev = pte_entry;
     vaddr_t vpn = va & PAGE_FRAME;
-    lock_acquire(page_lock);
     if(pte_entry != NULL && pte_entry->next == NULL && vpn == pte_entry->virtual_page_number){
         if(pte_entry->state == IN_MEM){
             page_free(pte_entry->physical_page_number, pte_entry->virtual_page_number);
@@ -156,7 +168,6 @@ remove_pte_for(struct addrspace *as, vaddr_t va){
 void
 destroy_pte_for(struct addrspace *as){
     struct page_table_entry *next;
-    // lock_acquire(page_lock);
     while(as->pte_head != NULL){
         next = as->pte_head->next;
         as->pte_head->next = NULL;
@@ -171,5 +182,4 @@ destroy_pte_for(struct addrspace *as){
         kfree(as->pte_head);
         as->pte_head = next;
     }
-    // lock_release(page_lock);
 }

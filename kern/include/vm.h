@@ -62,10 +62,13 @@ struct coremap_entry
     struct addrspace *as;
     vaddr_t va;
     bool busy:1;
+    int tlbid;
     struct cpu *cpu;
 };
 
 struct coremap_entry *coremap;
+
+struct spinlock coremap_spinlock;
 
 void init_coremap(void);
 

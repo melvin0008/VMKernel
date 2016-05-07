@@ -159,7 +159,6 @@ sys_fork(struct trapframe *parent_tf, pid_t *retval){
     if(err){
         return err;
     }
-    // as_activate(child_as);
     // pid_t child_thread_pid;
    
     err = thread_fork("child_proc", child_proc,(void *) child_forkentry, child_tf,(long unsigned int) NULL);

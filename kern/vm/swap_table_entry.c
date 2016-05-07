@@ -17,6 +17,7 @@ void swap_disk_init(){
     swap_bitmap = bitmap_create(MAX_SWAP_TABLE_ENTIRES);
     page_lock = lock_create("page_lock");
     swap_vnode_lock = lock_create("swap_node");
+    create_lock = lock_create("create_lock");
     if(!err){
         is_swapping = true;
     }
@@ -52,9 +53,11 @@ void swapdisk_to_memory(int disk_position, paddr_t paddr){
     struct iovec io_vec;
     
     KASSERT(bitmap_isset(swap_bitmap, disk_position)!=0);
+    spinlock_release(&coremap_spinlock);
     uio_kinit(&io_vec, &user_io, (void *) PADDR_TO_KVADDR(paddr), PAGE_SIZE, disk_position * PAGE_SIZE,UIO_READ);
     int err = VOP_READ(swap_vn,&user_io);
     if(err) panic("Can't Read . I have no idea what to do now");
+    spinlock_acquire(&coremap_spinlock);
 }
 
 void copy_swapdisk(int old_disk_position,int new_disk_position){

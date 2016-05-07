@@ -131,6 +131,7 @@ as_activate(void)
 	// 
 	// Used when context switch happens. It invalidates all TLB entries and make
 	// current process's address space the one currently seen by the processor.
+	
 	struct addrspace *as;
 
 	as = proc_getas();
@@ -139,6 +140,7 @@ as_activate(void)
 		 * Kernel thread without an address space; leave the
 		 * prior address space in place.
 		 */
+		 
 		return;
 	}
 
@@ -147,7 +149,6 @@ as_activate(void)
 	 */
 	// Call tlb_shootdown 
 	 vm_tlbshootdown_all();
-
 }
 
 void

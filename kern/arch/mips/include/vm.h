@@ -120,8 +120,8 @@ struct tlbshootdown {
 	/*
 	 * Change this to what you need for your VM design.
 	 */
-	struct addrspace *as;
-    vaddr_t va;
+	unsigned cmap_index;
+    int tlbid;
 };
 
 #define TLBSHOOTDOWN_MAX 16
