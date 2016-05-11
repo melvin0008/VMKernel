@@ -8,15 +8,18 @@
 #include <vm.h>
 #include <synch.h>
 #include <bitmap.h>
+#include <wchan.h>
 #include <swap_table_entry.h>
+
+static char swapdisk_buffer[PAGE_SIZE];
 
 void swap_disk_init(){
     int err;
 
     err = vfs_open((char *)"lhd0raw:",O_RDWR,0,&swap_vn);
     swap_bitmap = bitmap_create(MAX_SWAP_TABLE_ENTIRES);
-    page_lock = lock_create("page_lock");
     swap_vnode_lock = lock_create("swap_node");
+    tlb_wchan=wchan_create("TLB_WCHAN");
     if(!err){
         is_swapping = true;
     }
@@ -60,9 +63,8 @@ void swapdisk_to_memory(int disk_position, paddr_t paddr){
 void copy_swapdisk(int old_disk_position,int new_disk_position){
     struct uio user_io;
     struct iovec io_vec;
-    lock_acquire(swap_vnode_lock);
     KASSERT(old_disk_position!=-1);
-    static char swapdisk_buffer[PAGE_SIZE];
+    lock_acquire(swap_vnode_lock);
     uio_kinit(&io_vec, &user_io, swapdisk_buffer, PAGE_SIZE, old_disk_position * PAGE_SIZE,UIO_READ);
     int err = VOP_READ(swap_vn,&user_io);
     if(err) panic("Can't Read . I have no idea what to do now");

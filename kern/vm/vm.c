@@ -12,6 +12,7 @@
 #include <spinlock.h>
 #include <cpu.h>
 #include <spl.h>
+#include <wchan.h>
 #include <machine/tlb.h>
 #include <swap_table_entry.h>
 
@@ -22,7 +23,7 @@ static uint32_t total_num_pages;
 static uint32_t first_free_page;
 
 
-static void swapout_page(int cmap_index);
+static void swapout_page(struct page_table_entry *pte, int cmap_index);
 static void swapin_page(paddr_t paddr, struct page_table_entry *pte);
 static void invalidate_tlb(vaddr_t v_addr);
 
@@ -47,6 +48,7 @@ static void set_cmap_fixed(struct coremap_entry *cmap , size_t chunk_size, struc
 
 static void set_cmap_free(struct coremap_entry *cmap , size_t chunk_size, struct addrspace *as, vaddr_t va){
     set_cmap_entry(cmap,FREE,chunk_size,as,va);
+    cmap->busy = 0;
     cmap->cpu = NULL;
     cmap->tlbid = -1;
 }
@@ -94,25 +96,13 @@ static uint32_t get_victim(){
     uint32_t i;
     uint32_t rstart = first_free_page + (random()%(total_num_pages-first_free_page));
     for(i = rstart; i < total_num_pages; i++){
-        if((coremap[i].state ==DIRTY) && !coremap[i].busy ){
+        if((coremap[i].state == DIRTY || coremap[i].state == CLEAN ) && !coremap[i].busy ){
             coremap[i].busy = 1;
             return i;
         }
     }
     for(i = first_free_page; i < rstart; i++){
-        if((coremap[i].state ==DIRTY) && !coremap[i].busy){
-            coremap[i].busy = 1;
-            return i;
-        }
-    }
-     for(i = rstart; i < total_num_pages; i++){
-        if(coremap[i].state == CLEAN && !coremap[i].busy ){
-            coremap[i].busy = 1;
-            return i;
-        }
-    }
-    for(i = first_free_page; i < rstart; i++){
-        if(coremap[i].state == CLEAN && !coremap[i].busy){
+        if((coremap[i].state == DIRTY || coremap[i].state == CLEAN ) && !coremap[i].busy){
             coremap[i].busy = 1;
             return i;
         }
@@ -197,9 +187,27 @@ alloc_kpages(unsigned npages){
             KASSERT(npages==1);
             spinlock_acquire(&coremap_spinlock);
             //get_victim
-            uint32_t victim =  get_victim();
+            uint32_t victim;
+            struct coremap_entry cmap_entry;
+            struct page_table_entry *pte;
+
             //swapout
-            swapout_page(victim);
+            victim =  get_victim();
+            cmap_entry = coremap[victim];
+            pte = search_pte(cmap_entry.as, cmap_entry.va);
+            while(pte->busy == true){
+                coremap[victim].busy = 0;
+                victim =  get_victim();
+                cmap_entry = coremap[victim];
+                pte = search_pte(cmap_entry.as, cmap_entry.va);
+            } 
+            //swapout
+            lock_acquire(pte->lock);
+            pte->busy = true;
+            swapout_page(pte, victim);
+            pte->busy = false;
+            lock_release(pte->lock);
+
             set_cmap_fixed(&coremap[victim],1,NULL, PADDR_TO_KVADDR(victim* PAGE_SIZE));
             p = victim * PAGE_SIZE;
             bzero((void *)PADDR_TO_KVADDR(p), npages * PAGE_SIZE);
@@ -233,13 +241,31 @@ paddr_t page_alloc(struct addrspace *as, vaddr_t va){
     spinlock_release(&coremap_spinlock);
     if(i>=total_num_pages){
         if(is_swapping){
-            spinlock_acquire(&coremap_spinlock);
             // get_victim
-            uint32_t victim =  get_victim();
+            uint32_t victim;
+            struct coremap_entry cmap_entry;
+            struct page_table_entry *pte;
+
             //swapout
-            swapout_page(victim);
-            coremap[victim].cpu = NULL;
-            coremap[victim].tlbid = -1;
+            spinlock_acquire(&coremap_spinlock);
+            victim =  get_victim();
+            cmap_entry = coremap[victim];
+            spinlock_release(&coremap_spinlock);
+            pte = search_pte(cmap_entry.as, cmap_entry.va);
+            while(pte->busy == true){
+                spinlock_acquire(&coremap_spinlock);
+                set_busy(&coremap[victim],0);
+                victim =  get_victim();
+                cmap_entry = coremap[victim];
+                spinlock_release(&coremap_spinlock);
+                pte = search_pte(cmap_entry.as, cmap_entry.va);
+            }
+            lock_acquire(pte->lock);
+            pte->busy = true; 
+            spinlock_acquire(&coremap_spinlock);
+            swapout_page(pte, victim);
+            pte->busy = false; 
+            lock_release(pte->lock); 
             set_cmap_dirty(&coremap[victim],1,as, va);
             p = victim * PAGE_SIZE;
             bzero((void *)PADDR_TO_KVADDR(p), 1 * PAGE_SIZE);
@@ -296,12 +322,14 @@ void page_free(paddr_t physical_page_addr, vaddr_t v_addr){
 
 };
 
-void swapout_page(int cmap_index){
+void swapout_page(struct page_table_entry *pte, int cmap_index){
+    KASSERT(pte->busy == true);
 
-    struct coremap_entry cmap_entry = coremap[cmap_index];
-    struct page_table_entry *pte = search_pte(cmap_entry.as, cmap_entry.va);
     KASSERT(pte != NULL);
+    KASSERT(lock_do_i_hold(pte->lock));
     // Shootdown tlb entry
+    // lock_acquire(pte->lock);
+    struct coremap_entry cmap_entry = coremap[cmap_index];
     if(coremap[cmap_index].tlbid>=0){
         if(cmap_entry.cpu == curcpu){
             invalidate_tlb(cmap_entry.va);
@@ -313,10 +341,11 @@ void swapout_page(int cmap_index){
             tl.tlbid = coremap[cmap_index].tlbid;
 
             ipi_tlbshootdown(coremap[cmap_index].cpu,(const struct tlbshootdown *) &tl);
-            while(coremap[cmap_index].tlbid!=-1){
+            // while(coremap[cmap_index].tlbid!=-1){
+                wchan_sleep(tlb_wchan,&coremap_spinlock);
                 //This is like a JS callback
-            }
-            KASSERT(coremap[cmap_index].tlbid==-1);
+            // }
+            // KASSERT(coremap[cmap_index].tlbid==-1);
         }
     }
     KASSERT(coremap[cmap_index].busy==1);
@@ -329,8 +358,9 @@ void swapout_page(int cmap_index){
         memory_to_swapdisk(pte->physical_page_number,pte->disk_position);
         spinlock_acquire(&coremap_spinlock);
     }
-    pte->state = IN_DISK;
     pte->physical_page_number = 0;
+    pte->state = IN_DISK;
+    // lock_release(pte->lock);
     set_cmap_free(&coremap[cmap_index],1,NULL,0);
     bzero((void*) PADDR_TO_KVADDR(cmap_index*PAGE_SIZE),PAGE_SIZE);    
 }
@@ -340,13 +370,18 @@ void swapin_page(paddr_t paddr, struct page_table_entry *pte){
     // Allocate a physical page
     // Find the swap slot using ste and
     // Copy stuff from disk to mem
+    // lock_acquire(pte->lock);
+
     uint32_t cmap_index = paddr/ PAGE_SIZE ;
     KASSERT(coremap[cmap_index].state!= FIXED);
     set_busy(&coremap[cmap_index],1);
+    KASSERT(pte->busy == true);
     swapdisk_to_memory(pte->disk_position, paddr);
     // Update the pte to indicate that the page is now in memory
     pte->physical_page_number = paddr;
     pte->state = IN_MEM;
+    set_busy(&coremap[cmap_index],0);
+    // lock_release(pte->lock);
 }
 
 
@@ -370,15 +405,16 @@ vm_tlbshootdown_all(void){
     int i;
 
     /* Disable interrupts on this CPU while frobbing the TLB. */
-    spinlock_acquire(&tlb_spinlock);
+    spinlock_acquire(&coremap_spinlock);
     // spl = splhigh();
 
     for (i=0; i<NUM_TLB; i++) {
         tlb_write(TLBHI_INVALID(i), TLBLO_INVALID(), i);
     }
+    wchan_wakeall(tlb_wchan,&coremap_spinlock);
 
     // splx(spl);
-    spinlock_release(&tlb_spinlock);
+    spinlock_release(&coremap_spinlock);
         
 };
 
@@ -386,7 +422,7 @@ void
 vm_tlbshootdown(const struct tlbshootdown *tlb){
     uint32_t entry_lo, entry_hi;
     paddr_t paddr;
-    spinlock_acquire(&tlb_spinlock);
+    spinlock_acquire(&coremap_spinlock);
     int index = tlb->cmap_index;
     if(coremap[index].cpu==curcpu && coremap[index].tlbid==tlb->tlbid ){
         tlb_read(&entry_hi, &entry_lo, tlb->tlbid);
@@ -399,7 +435,8 @@ vm_tlbshootdown(const struct tlbshootdown *tlb){
         tlb_write(TLBHI_INVALID(tlb->tlbid), TLBLO_INVALID(), tlb->tlbid);
         coremap[index].tlbid=-1;
     }
-    spinlock_release(&tlb_spinlock);
+    wchan_wakeall(tlb_wchan,&coremap_spinlock);
+    spinlock_release(&coremap_spinlock);
 
 };
 
@@ -458,7 +495,6 @@ vm_fault(int faulttype, vaddr_t faultaddress){
     else{
         permission = addr_region->permission;
     }
-    lock_acquire(page_lock);
     pte = search_pte(as, faultaddress);
     switch(faulttype){
         case VM_FAULT_READ:
@@ -466,17 +502,25 @@ vm_fault(int faulttype, vaddr_t faultaddress){
             // 
             if(pte == NULL){
                 // Allocate a new page (handled in add_pte)
+                pte = add_pte(as, faultaddress, 0, permission);
+                lock_acquire(pte->lock);
+                pte->busy = true;
                 paddr_t new_paddr = page_alloc(as,faultaddress);
-                pte = add_pte(as, faultaddress, new_paddr, permission);
+                pte->physical_page_number = new_paddr;
                 if(pte == NULL){
-                    lock_release(page_lock);
+                    pte->busy = false;
+
+                    lock_release(pte->lock);
                     return ENOMEM;
                 }
             }
             else{
+                lock_acquire(pte->lock);
+                pte->busy = true;
                 // Check if user has proper permission
                 if(!has_permission(faulttype,pte)){
-                    lock_release(page_lock);
+                    pte->busy = false;
+                    lock_release(pte->lock);
                     
                     return EFAULT;
                 }
@@ -490,8 +534,8 @@ vm_fault(int faulttype, vaddr_t faultaddress){
                 swapin_page(new_paddr,pte);
                 KASSERT(pte->physical_page_number!=0); 
                 KASSERT(pte->virtual_page_number==faultaddress); 
-                set_busy(&coremap[new_paddr/PAGE_SIZE],0);
-                //set clean
+                
+                // set clean
                 if((permission & PF_R )== PF_R)
                 {
                     set_cmap_clean(&coremap[pte->physical_page_number/PAGE_SIZE],1,as,faultaddress);    
@@ -518,15 +562,19 @@ vm_fault(int faulttype, vaddr_t faultaddress){
             KASSERT(tlb_index>=0);
             coremap[pte->physical_page_number/PAGE_SIZE].tlbid = tlb_index;
             coremap[pte->physical_page_number/PAGE_SIZE].cpu = curcpu;
-            
-            set_busy(&coremap[pte->physical_page_number/PAGE_SIZE],0);
+            pte->busy = false;
+            // set_busy(&coremap[pte->physical_page_number/PAGE_SIZE],0);
             spinlock_release(&coremap_spinlock);
+            lock_release(pte->lock);
             // Now we know that there is an entry in the TLB
             break;
         case VM_FAULT_READONLY:
             KASSERT(pte!=NULL);
+            lock_acquire(pte->lock);
+            pte->busy = true;
             if(!has_permission(faulttype,pte)){
-                    lock_release(page_lock);
+                    pte->busy = false;
+                    lock_release(pte->lock);
                     return EFAULT;
                 }
             spinlock_acquire(&coremap_spinlock  );
@@ -538,11 +586,13 @@ vm_fault(int faulttype, vaddr_t faultaddress){
             tlb_write(entry_hi, entry_lo, tlb_index);
             coremap[pte->physical_page_number/PAGE_SIZE].tlbid = tlb_index;
             coremap[pte->physical_page_number/PAGE_SIZE].cpu = curcpu;
+            pte->busy = false;
+            
             spinlock_release(&coremap_spinlock);
+            lock_release(pte->lock);
         break;
         default:
         return EFAULT;
     }
-    lock_release(page_lock);
     return 0;
 };
