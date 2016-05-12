@@ -450,24 +450,15 @@ vm_tlbshootdown_all(void){
 
 void
 vm_tlbshootdown(const struct tlbshootdown *tlb){
-    uint32_t entry_lo, entry_hi;
-    paddr_t paddr;
     spinlock_acquire(&coremap_spinlock);
     int index = tlb->cmap_index;
     if(coremap[index].cpu==curcpu && coremap[index].tlbid==tlb->tlbid ){
-        tlb_read(&entry_hi, &entry_lo, tlb->tlbid);
-        if(entry_lo){
-            paddr=entry_lo & PAGE_FRAME;
-            KASSERT(paddr!=0);
-            coremap[paddr/PAGE_SIZE].tlbid = -1;
-            coremap[paddr/PAGE_SIZE].cpu = NULL;
-        }
+        coremap[index].tlbid = -1;
+        coremap[index].cpu = NULL;
         tlb_write(TLBHI_INVALID(tlb->tlbid), TLBLO_INVALID(), tlb->tlbid);
-        coremap[index].tlbid=-1;
     }
     wchan_wakeall(tlb_wchan,&coremap_spinlock);
     spinlock_release(&coremap_spinlock);
-
 };
 
 static bool
