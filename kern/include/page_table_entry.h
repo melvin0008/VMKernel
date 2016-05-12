@@ -14,7 +14,7 @@ struct page_table_entry{
     unsigned disk_position;
     struct lock *lock;
     struct page_table_entry* next;
-
+    bool clock_bit:1;
 };
 
 struct page_table_entry *create_page_table_entry(vaddr_t vpn, paddr_t ppn, int permission);

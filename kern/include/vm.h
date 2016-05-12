@@ -65,7 +65,6 @@ struct coremap_entry
     struct cpu *cpu;
     int tlbid;
     struct page_table_entry *pte;
-    bool clock_bit:1;
 };
 
 struct coremap_entry *coremap;

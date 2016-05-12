@@ -65,6 +65,7 @@ page_table_entry *copy_pt(struct addrspace *newas, struct page_table_entry *old_
     while(old_pte!=NULL){
         lock_acquire(old_pte->lock);
         old_pte->busy = true;
+        old_pte->clock_bit = 1;
         struct page_table_entry *new_pte = add_pte(newas,old_pte->virtual_page_number,0,old_pte->permission);
         // lock_acquire(new_pte->lock);
         if(new_pte == NULL){
@@ -81,6 +82,7 @@ page_table_entry *copy_pt(struct addrspace *newas, struct page_table_entry *old_
         else{
             // memmove((void *) kernel_buffer,(void *) PADDR_TO_KVADDR(old_pte->physical_page_number),PAGE_SIZE);
             new_pte->physical_page_number = page_alloc(newas,new_pte->virtual_page_number,new_pte);
+            new_pte->clock_bit = 1;
             if(new_pte->physical_page_number == 0){
                 *retval = ENOMEM;
                 old_pte->busy = false;

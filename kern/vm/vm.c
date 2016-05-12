@@ -43,7 +43,6 @@ static void set_cmap_fixed(struct coremap_entry *cmap , size_t chunk_size, struc
     set_cmap_entry(cmap,FIXED,chunk_size,as,va);
     cmap->cpu = NULL;
     cmap->tlbid = -1;
-    cmap->clock_bit = 1;
 }
 
 
@@ -52,18 +51,15 @@ static void set_cmap_free(struct coremap_entry *cmap , size_t chunk_size, struct
     cmap->busy = 0;
     cmap->cpu = NULL;
     cmap->tlbid = -1;
-    cmap->clock_bit = 0;
 }
 
 static void set_cmap_dirty(struct coremap_entry *cmap , size_t chunk_size, struct addrspace *as, vaddr_t va){
     set_cmap_entry(cmap,DIRTY,chunk_size,as,va);
-    cmap->cpu = curcpu;
-    cmap->clock_bit = 1;  
+    cmap->cpu = curcpu;  
 }
 static void set_cmap_clean(struct coremap_entry *cmap , size_t chunk_size, struct addrspace *as, vaddr_t va){
     set_cmap_entry(cmap,CLEAN,chunk_size,as,va);
     cmap->cpu = curcpu;
-    cmap->clock_bit = 1;
 }
 
 static void set_busy(struct coremap_entry *cmap, bool is_busy){
@@ -105,7 +101,7 @@ static uint32_t get_victim(){
         struct page_table_entry *pte = coremap[i].pte;
         if(pte)
         {   
-             if(coremap[i].clock_bit == 0 && (coremap[i].state == DIRTY || coremap[i].state == CLEAN ) && !coremap[i].busy && pte->busy == 0){
+             if(pte->clock_bit == 0 && (coremap[i].state == DIRTY || coremap[i].state == CLEAN ) && !coremap[i].busy && pte->busy == 0){
                 if(i!=total_num_pages-1)
                 {
                     clock_hand = i+1;
@@ -117,16 +113,16 @@ static uint32_t get_victim(){
                 lock_release(clock_hand_lock);
                 return i;
             }
+            if(pte->clock_bit ==1 && (coremap[i].state == DIRTY || coremap[i].state == CLEAN ) && !coremap[i].busy && pte->busy == 0){
+                pte->clock_bit = 0;
+            }
         }
-        if(coremap[i].clock_bit == 1){
-                    coremap[i].clock_bit = 0;
-            }   
-    }
+    }    
     for(i = first_free_page; i < total_num_pages; i++){
         struct page_table_entry *pte = coremap[i].pte;
         if(pte)
         {   
-            if(coremap[i].clock_bit == 0 && (coremap[i].state == DIRTY || coremap[i].state == CLEAN ) && !coremap[i].busy && pte->busy == 0){
+             if(pte->clock_bit == 0 && (coremap[i].state == DIRTY || coremap[i].state == CLEAN ) && !coremap[i].busy && pte->busy == 0){
                 if(i!=total_num_pages-1)
                 {
                     clock_hand = i+1;
@@ -137,11 +133,10 @@ static uint32_t get_victim(){
                 coremap[i].busy = 1;
                 lock_release(clock_hand_lock);
                 return i;
-            
             }
-        }
-        if(coremap[i].clock_bit == 1){
-            coremap[i].clock_bit = 0;
+            if(pte->clock_bit ==1 && (coremap[i].state == DIRTY || coremap[i].state == CLEAN ) && !coremap[i].busy && pte->busy == 0){
+                pte->clock_bit = 0;
+            }
         }
     }    
     lock_release(clock_hand_lock);
@@ -302,7 +297,6 @@ paddr_t page_alloc(struct addrspace *as, vaddr_t va, struct page_table_entry *pt
             spinlock_release(&coremap_spinlock);
         }
         else{
-
             return 0;
         }
     }
@@ -384,6 +378,8 @@ void swapout_page(struct page_table_entry *pte, int cmap_index){
     coremap[cmap_index].cpu = NULL;
     coremap[cmap_index].tlbid = -1;
     KASSERT(pte->physical_page_number != 0);
+    pte->clock_bit = 1;
+    
     coremap[cmap_index].pte = pte;
     KASSERT((unsigned)(cmap_index * PAGE_SIZE) == pte->physical_page_number);
     // Copy contents from mem to disk
@@ -465,7 +461,6 @@ vm_tlbshootdown(const struct tlbshootdown *tlb){
             KASSERT(paddr!=0);
             coremap[paddr/PAGE_SIZE].tlbid = -1;
             coremap[paddr/PAGE_SIZE].cpu = NULL;
-
         }
         tlb_write(TLBHI_INVALID(tlb->tlbid), TLBLO_INVALID(), tlb->tlbid);
         coremap[index].tlbid=-1;
@@ -539,6 +534,7 @@ vm_fault(int faulttype, vaddr_t faultaddress){
                 pte = add_pte(as, faultaddress, 0, permission);
                 lock_acquire(pte->lock);
                 pte->busy = true;
+                pte->clock_bit = 1;
                 paddr_t new_paddr = page_alloc(as,faultaddress,pte);
                 pte->physical_page_number = new_paddr;
                 coremap[pte->physical_page_number/PAGE_SIZE].pte = pte;
@@ -574,17 +570,21 @@ vm_fault(int faulttype, vaddr_t faultaddress){
                 if((permission & PF_R )== PF_R)
                 {
                     set_cmap_clean(&coremap[pte->physical_page_number/PAGE_SIZE],1,as,faultaddress);    
+                    pte->clock_bit = 1;
+                    
                     coremap[pte->physical_page_number/PAGE_SIZE].pte = pte;
                 }
 
             }
             if(is_swapping && (permission & PF_W) == PF_W){
                 //set dirty
+                pte->clock_bit = 1;
                 set_busy(&coremap[pte->physical_page_number/PAGE_SIZE],1);
                 set_cmap_dirty(&coremap[pte->physical_page_number/PAGE_SIZE],1,as,faultaddress);   
                 coremap[pte->physical_page_number/PAGE_SIZE].pte = pte;
                 set_busy(&coremap[pte->physical_page_number/PAGE_SIZE],0);
             }
+            pte->clock_bit = 1;
 
             // Add entry to tlb
             
@@ -616,6 +616,7 @@ vm_fault(int faulttype, vaddr_t faultaddress){
                     lock_release(pte->lock);
                     return EFAULT;
                 }
+            pte->clock_bit = 1;
             spinlock_acquire(&coremap_spinlock  );
             tlb_index = tlb_probe(faultaddress,0);
             KASSERT(tlb_index>=0);
