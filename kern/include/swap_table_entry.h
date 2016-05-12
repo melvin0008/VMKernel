@@ -5,6 +5,8 @@ struct vnode *swap_vn;
 struct bitmap *swap_bitmap;
 struct lock *swap_vnode_lock;
 struct lock *page_lock;
+struct lock *clock_hand_lock;
+
 struct wchan *tlb_wchan;
 bool is_swapping;
 

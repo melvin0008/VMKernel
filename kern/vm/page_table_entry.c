@@ -80,7 +80,7 @@ page_table_entry *copy_pt(struct addrspace *newas, struct page_table_entry *old_
         }
         else{
             // memmove((void *) kernel_buffer,(void *) PADDR_TO_KVADDR(old_pte->physical_page_number),PAGE_SIZE);
-            new_pte->physical_page_number = page_alloc(newas,new_pte->virtual_page_number);
+            new_pte->physical_page_number = page_alloc(newas,new_pte->virtual_page_number,new_pte);
             if(new_pte->physical_page_number == 0){
                 *retval = ENOMEM;
                 old_pte->busy = false;

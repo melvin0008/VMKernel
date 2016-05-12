@@ -64,9 +64,13 @@ struct coremap_entry
     bool busy:1;
     struct cpu *cpu;
     int tlbid;
+    struct page_table_entry *pte;
+    bool clock_bit:1;
 };
 
 struct coremap_entry *coremap;
+
+unsigned clock_hand;
 
 void init_coremap(void);
 
@@ -81,7 +85,7 @@ void free_pages(paddr_t physical_page_addr, vaddr_t v_addr);
 vaddr_t alloc_kpages(unsigned npages);
 void free_kpages(vaddr_t addr);
 
-paddr_t page_alloc(struct addrspace *as, vaddr_t v_addr);
+paddr_t page_alloc(struct addrspace *as, vaddr_t v_addr,struct page_table_entry *pte);
 void page_free(paddr_t p_addr, vaddr_t v_addr);
 /*
  * Return amount of memory (in bytes) used by allocated coremap pages.  If

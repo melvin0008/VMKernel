@@ -19,6 +19,7 @@ void swap_disk_init(){
     err = vfs_open((char *)"lhd0raw:",O_RDWR,0,&swap_vn);
     swap_bitmap = bitmap_create(MAX_SWAP_TABLE_ENTIRES);
     swap_vnode_lock = lock_create("swap_node");
+    clock_hand_lock = lock_create("clock-hand");
     tlb_wchan=wchan_create("TLB_WCHAN");
     if(!err){
         is_swapping = true;
