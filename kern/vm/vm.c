@@ -228,17 +228,19 @@ alloc_kpages(unsigned npages){
             struct page_table_entry *pte;
 
             //swapout
-            victim =  get_victim();
             spinlock_acquire(&coremap_spinlock);
+            victim =  get_victim();
             pte = coremap[victim].pte;
+            spinlock_release(&coremap_spinlock);
             //swapout
             lock_acquire(pte->lock);
             pte->busy = true;
             swapout_page(pte, victim);
             pte->busy = false;
-            coremap[victim].pte = pte;
             lock_release(pte->lock);
 
+            spinlock_acquire(&coremap_spinlock);
+            coremap[victim].pte = pte;
             set_cmap_fixed(&coremap[victim],1,NULL, PADDR_TO_KVADDR(victim* PAGE_SIZE));
             p = victim * PAGE_SIZE;
             bzero((void *)PADDR_TO_KVADDR(p), npages * PAGE_SIZE);
@@ -278,18 +280,19 @@ paddr_t page_alloc(struct addrspace *as, vaddr_t va, struct page_table_entry *pt
             // struct coremap_entry cmap_entry;
             struct page_table_entry *pte;
             
-
             //swapout
-            victim =  get_victim();
             spinlock_acquire(&coremap_spinlock);
+            victim =  get_victim();
             pte = coremap[victim].pte;
+            spinlock_release(&coremap_spinlock);
             lock_acquire(pte->lock);
             pte->busy = true; 
             // spinlock_acquire(&coremap_spinlock);
             swapout_page(pte, victim);
             pte->busy = false; 
-            coremap[victim].pte = pte_send;
             lock_release(pte->lock); 
+            spinlock_acquire(&coremap_spinlock);
+            coremap[victim].pte = pte_send;
             set_cmap_dirty(&coremap[victim],1,as, va);
             p = victim * PAGE_SIZE;
             bzero((void *)PADDR_TO_KVADDR(p), 1 * PAGE_SIZE);
@@ -355,6 +358,7 @@ void swapout_page(struct page_table_entry *pte, int cmap_index){
     KASSERT(lock_do_i_hold(pte->lock));
     // Shootdown tlb entry
     // lock_acquire(pte->lock);
+    spinlock_acquire(&coremap_spinlock);
     struct coremap_entry cmap_entry = coremap[cmap_index];
     if(coremap[cmap_index].tlbid>=0){
         if(cmap_entry.cpu == curcpu){
@@ -386,12 +390,13 @@ void swapout_page(struct page_table_entry *pte, int cmap_index){
     if(coremap[cmap_index].state == DIRTY){
         spinlock_release(&coremap_spinlock);
         memory_to_swapdisk(pte->physical_page_number,pte->disk_position);
-        spinlock_acquire(&coremap_spinlock);
+    }
+    else{
+        spinlock_release(&coremap_spinlock);
     }
     pte->physical_page_number = 0;
     pte->state = IN_DISK;
     // lock_release(pte->lock);
-    set_cmap_free(&coremap[cmap_index],1,NULL,0);
     bzero((void*) PADDR_TO_KVADDR(cmap_index*PAGE_SIZE),PAGE_SIZE);    
 }
 

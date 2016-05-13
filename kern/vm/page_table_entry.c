@@ -29,7 +29,7 @@ create_page_table_entry(vaddr_t vpn, paddr_t ppn, int permission){
         pte->disk_position = 0;
     }
     pte->lock = lock_create("pte-lock");
-    pte->busy = false; 
+    pte->busy = 1; 
     pte->next = NULL;
     return pte;
 };
