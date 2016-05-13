@@ -228,8 +228,8 @@ alloc_kpages(unsigned npages){
             struct page_table_entry *pte;
 
             //swapout
-            spinlock_acquire(&coremap_spinlock);
             victim =  get_victim();
+            spinlock_acquire(&coremap_spinlock);
             pte = coremap[victim].pte;
             //swapout
             lock_acquire(pte->lock);
@@ -280,8 +280,8 @@ paddr_t page_alloc(struct addrspace *as, vaddr_t va, struct page_table_entry *pt
             
 
             //swapout
-            spinlock_acquire(&coremap_spinlock);
             victim =  get_victim();
+            spinlock_acquire(&coremap_spinlock);
             pte = coremap[victim].pte;
             lock_acquire(pte->lock);
             pte->busy = true; 
