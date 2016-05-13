@@ -132,7 +132,7 @@ remove_pte_for(struct addrspace *as, vaddr_t va){
     struct page_table_entry *prev = pte_entry;
     vaddr_t vpn = va & PAGE_FRAME;
     if(pte_entry != NULL && pte_entry->next == NULL && vpn == pte_entry->virtual_page_number){
-        lock_acquire(pte_entry->lock);
+        // lock_acquire(pte_entry->lock);
         pte_entry->busy = true;
         if(pte_entry->state == IN_MEM){
             page_free(pte_entry->physical_page_number, pte_entry->virtual_page_number);
@@ -142,7 +142,7 @@ remove_pte_for(struct addrspace *as, vaddr_t va){
             bitmap_unmark(swap_bitmap,as->pte_head->disk_position);
         }
         pte_entry->busy = false;
-        lock_release(pte_entry->lock);
+        // lock_release(pte_entry->lock);
         lock_destroy(pte_entry->lock);
         kfree(pte_entry);
         as->pte_head = NULL;
