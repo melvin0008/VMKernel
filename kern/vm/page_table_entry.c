@@ -75,7 +75,9 @@ page_table_entry *copy_pt(struct addrspace *newas, struct page_table_entry *old_
             lock_release(old_pte->lock);
             return NULL;
         }
-        lock_acquire(new_pte->lock);
+        new_pte->clock_bit = 1;
+        new_pte->busy = true;
+        // lock_acquire(new_pte->lock);
         if(old_pte->state == IN_DISK){
             copy_swapdisk(old_pte->disk_position,new_pte->disk_position);
             new_pte->physical_page_number = 0;
@@ -83,11 +85,10 @@ page_table_entry *copy_pt(struct addrspace *newas, struct page_table_entry *old_
         else{
             // memmove((void *) kernel_buffer,(void *) PADDR_TO_KVADDR(old_pte->physical_page_number),PAGE_SIZE);
             new_pte->physical_page_number = page_alloc(newas,new_pte->virtual_page_number,new_pte);
-            new_pte->clock_bit = 1;
             if(new_pte->physical_page_number == 0){
                 *retval = ENOMEM;
                 old_pte->busy = false;
-                lock_release(new_pte->lock);
+                // lock_release(new_pte->lock);
                 lock_release(old_pte->lock);
                 return NULL;
             }
@@ -96,8 +97,9 @@ page_table_entry *copy_pt(struct addrspace *newas, struct page_table_entry *old_
         new_pte->state = old_pte->state;
         // lock_release(new_pte->lock);
         old_pte->busy = false;
+        new_pte->busy =false;
         temp = old_pte->next;
-        lock_release(new_pte->lock);
+        // lock_release(new_pte->lock);
         lock_release(old_pte->lock);
         old_pte = temp;
     }
