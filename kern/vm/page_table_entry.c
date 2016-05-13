@@ -88,6 +88,7 @@ page_table_entry *copy_pt(struct addrspace *newas, struct page_table_entry *old_
             if(new_pte->physical_page_number == 0){
                 *retval = ENOMEM;
                 old_pte->busy = false;
+                new_pte->busy = false;
                 // lock_release(new_pte->lock);
                 lock_release(old_pte->lock);
                 return NULL;
