@@ -57,6 +57,7 @@ struct page_table_entry
 struct
 page_table_entry *copy_pt(struct addrspace *newas, struct page_table_entry *old_pte , int32_t *retval){    
     
+    struct page_table_entry *temp;
     if(old_pte == NULL){
         *retval = 0;
         return NULL;
@@ -67,7 +68,6 @@ page_table_entry *copy_pt(struct addrspace *newas, struct page_table_entry *old_
         old_pte->busy = true;
         old_pte->clock_bit = 1;
         struct page_table_entry *new_pte = add_pte(newas,old_pte->virtual_page_number,0,old_pte->permission);
-        // lock_acquire(new_pte->lock);
         if(new_pte == NULL){
             *retval = ENOMEM;
             // lock_release(new_pte->lock);
@@ -75,6 +75,7 @@ page_table_entry *copy_pt(struct addrspace *newas, struct page_table_entry *old_
             lock_release(old_pte->lock);
             return NULL;
         }
+        lock_acquire(new_pte->lock);
         if(old_pte->state == IN_DISK){
             copy_swapdisk(old_pte->disk_position,new_pte->disk_position);
             new_pte->physical_page_number = 0;
@@ -86,7 +87,7 @@ page_table_entry *copy_pt(struct addrspace *newas, struct page_table_entry *old_
             if(new_pte->physical_page_number == 0){
                 *retval = ENOMEM;
                 old_pte->busy = false;
-                // lock_release(new_pte->lock);
+                lock_release(new_pte->lock);
                 lock_release(old_pte->lock);
                 return NULL;
             }
@@ -95,8 +96,10 @@ page_table_entry *copy_pt(struct addrspace *newas, struct page_table_entry *old_
         new_pte->state = old_pte->state;
         // lock_release(new_pte->lock);
         old_pte->busy = false;
+        temp = old_pte->next;
+        lock_release(new_pte->lock);
         lock_release(old_pte->lock);
-        old_pte = old_pte->next;
+        old_pte = temp;
     }
     return newas->pte_head;
 }
