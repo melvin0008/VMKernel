@@ -133,7 +133,10 @@ remove_pte_for(struct addrspace *as, vaddr_t va){
     vaddr_t vpn = va & PAGE_FRAME;
     if(pte_entry != NULL && pte_entry->next == NULL && vpn == pte_entry->virtual_page_number){
         lock_acquire(pte_entry->lock);
-        pte_entry->busy = true;
+        // pte_entry->busy = true;
+        // pte_entry->busy = false;
+        lock_release(pte_entry->lock);
+        lock_destroy(pte_entry->lock);
         if(pte_entry->state == IN_MEM){
             page_free(pte_entry->physical_page_number, pte_entry->virtual_page_number);
         }
@@ -141,9 +144,6 @@ remove_pte_for(struct addrspace *as, vaddr_t va){
             KASSERT(bitmap_isset(swap_bitmap,as->pte_head->disk_position)!=0);
             bitmap_unmark(swap_bitmap,as->pte_head->disk_position);
         }
-        pte_entry->busy = false;
-        lock_release(pte_entry->lock);
-        lock_destroy(pte_entry->lock);
         kfree(pte_entry);
         as->pte_head = NULL;
         return true;
@@ -158,10 +158,13 @@ remove_pte_for(struct addrspace *as, vaddr_t va){
     }
 
     if(pte_entry != NULL){
+        lock_acquire(pte_entry->lock);
         prev->next = pte_entry->next;
         pte_entry->next = NULL;
-        lock_acquire(pte_entry->lock);
         pte_entry->busy = true;
+        pte_entry->busy = false;
+        lock_release(pte_entry->lock);
+        lock_destroy(pte_entry->lock);
         if(pte_entry->state == IN_MEM){
             page_free(pte_entry->physical_page_number, pte_entry->virtual_page_number);
         }
@@ -169,9 +172,6 @@ remove_pte_for(struct addrspace *as, vaddr_t va){
             KASSERT(bitmap_isset(swap_bitmap,as->pte_head->disk_position)!=0);
             bitmap_unmark(swap_bitmap,as->pte_head->disk_position);
         }
-        pte_entry->busy = false;
-        lock_release(pte_entry->lock);
-        lock_destroy(pte_entry->lock);
         kfree(pte_entry);
         return true;
     }
@@ -186,8 +186,9 @@ destroy_pte_for(struct addrspace *as){
     while(first != NULL){
         next = first;
         lock_acquire(next->lock);
+        lock_release(next->lock);
+        lock_destroy(next->lock);
         KASSERT(next->busy == false);
-        next->busy = true;
         if(next->state==IN_MEM){
             page_free(next->physical_page_number, next->virtual_page_number);
         }
@@ -196,9 +197,6 @@ destroy_pte_for(struct addrspace *as){
             bitmap_unmark(swap_bitmap,next->disk_position);
 
         }
-        next->busy = false;
-        lock_release(next->lock);
-        lock_destroy(next->lock);
         first = first->next;
         kfree(next);
     }
